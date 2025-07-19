@@ -3,8 +3,30 @@ import { prisma } from '@/lib/prisma'
 import { fetchPackyCodeUserInfo, sendBarkNotification } from '@/lib/packycode'
 import { Decimal } from '@prisma/client/runtime/library'
 
-export async function GET() {
+// 验证API密钥
+function validateApiKey(request: NextRequest) {
+  const authHeader = request.headers.get('authorization')
+  const apiSecret = process.env.API_SECRET
+  
+  if (!apiSecret) {
+    throw new Error('API_SECRET not configured')
+  }
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    throw new Error('Missing or invalid authorization header')
+  }
+  
+  const token = authHeader.substring(7)
+  if (token !== apiSecret) {
+    throw new Error('Invalid API secret')
+  }
+}
+
+export async function POST(request: NextRequest) {
   try {
+    // 验证API密钥
+    validateApiKey(request)
+    
     const userInfo = await fetchPackyCodeUserInfo()
     
     const usageRecord = await prisma.usageRecord.create({
@@ -108,6 +130,13 @@ export async function GET() {
         details: error instanceof Error ? error.message : 'Unknown error',
       },
     })
+
+    if (error instanceof Error && error.message.includes('API')) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
 
     await sendBarkNotification(
       'PackyCode Monitor Error',
