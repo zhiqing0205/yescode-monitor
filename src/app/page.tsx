@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ExternalLink, Moon, Sun, Activity, TrendingUp } from 'lucide-react'
+import { Moon, Sun, Activity, TrendingUp } from 'lucide-react'
+import { FaGithub } from 'react-icons/fa'
 import { useTheme } from 'next-themes'
 import { DashboardCards } from '@/components/DashboardCards'
 import { UsageChart } from '@/components/UsageChart'
@@ -98,7 +99,7 @@ export default function Dashboard() {
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-gray-500/20 to-gray-700/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 <div className="relative">
-                  <ExternalLink className="w-5 h-5 text-gray-700 dark:text-gray-300 transition-transform duration-300 group-hover:scale-110" />
+                  <FaGithub className="w-5 h-5 text-gray-700 dark:text-gray-300 transition-transform duration-300 group-hover:scale-110" />
                 </div>
               </a>
               
