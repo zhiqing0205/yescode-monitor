@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/collect",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/daily-reset",
+      "schedule": "0 16 * * *"
+    }
+  ]
+}

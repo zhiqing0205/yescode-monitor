@@ -1,0 +1,68 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model UsageRecord {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+  
+  balanceUsd     Decimal
+  totalSpentUsd  Decimal
+  dailySpentUsd  Decimal
+  monthlySpentUsd Decimal
+  totalQuota     Int
+  usedQuota      Int
+  remainingQuota Int
+  
+  planType       String
+  planExpiresAt  DateTime
+  monthlyBudgetUsd Decimal
+  dailyBudgetUsd   Decimal
+  
+  createdAt DateTime @default(now())
+  
+  @@map("usage_records")
+}
+
+model DailyStats {
+  id     String @id @default(cuid())
+  date   DateTime @unique
+  
+  startBalance   Decimal
+  endBalance     Decimal
+  totalUsed      Decimal
+  usagePercentage Float
+  
+  notified50     Boolean @default(false)
+  notified80     Boolean @default(false)
+  notified95     Boolean @default(false)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("daily_stats")
+}
+
+model SystemLog {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+  
+  type      String
+  message   String
+  details   String?
+  
+  createdAt DateTime @default(now())
+  
+  @@map("system_logs")
+}
