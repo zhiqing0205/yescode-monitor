@@ -13,37 +13,46 @@ export function UsageChart({ data }: UsageChartProps) {
   const { theme } = useTheme()
   const today = startOfDay(new Date())
   
-  // 生成24小时的时间轴
-  const chartData = Array.from({ length: 24 }, (_, hour) => {
+  // 生成24小时的时间轴作为背景
+  const fullTimeAxis = Array.from({ length: 24 }, (_, hour) => {
     const hourTime = addHours(today, hour)
-    
-    // 查找该小时内最新的记录
-    const hourRecords = data.filter(record => {
-      const recordTime = new Date(record.timestamp)
-      return recordTime.getHours() === hour && 
-             recordTime.getDate() === today.getDate() &&
-             recordTime.getMonth() === today.getMonth() &&
-             recordTime.getFullYear() === today.getFullYear()
-    })
-    
-    // 如果有记录，取最新的一条
-    const latestRecord = hourRecords.length > 0 
-      ? hourRecords.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
-      : null
-    
-    // 计算当前余额 = daily_budget_usd - daily_spent_usd
-    const currentBalance = latestRecord 
-      ? parseFloat(latestRecord.dailyBudgetUsd) - parseFloat(latestRecord.dailySpentUsd)
-      : null
-    
     return {
       hour: format(hourTime, 'HH:mm'),
       hourNumber: hour,
-      balance: currentBalance ? parseFloat(currentBalance.toFixed(2)) : null,
+      balance: null,
       timestamp: hourTime.getTime(),
-      hasData: latestRecord !== null
+      hasData: false
     }
   })
+  
+  // 处理实际数据点
+  const actualDataPoints = data
+    .filter(record => {
+      const recordTime = new Date(record.timestamp)
+      return recordTime.getDate() === today.getDate() &&
+             recordTime.getMonth() === today.getMonth() &&
+             recordTime.getFullYear() === today.getFullYear()
+    })
+    .map(record => {
+      const recordTime = new Date(record.timestamp)
+      const currentBalance = parseFloat(record.dailyBudgetUsd) - parseFloat(record.dailySpentUsd)
+      
+      return {
+        hour: format(recordTime, 'HH:mm'),
+        hourNumber: recordTime.getHours() + recordTime.getMinutes() / 60, // 精确到分钟
+        balance: parseFloat(currentBalance.toFixed(2)),
+        timestamp: recordTime.getTime(),
+        hasData: true,
+        dailyBudget: parseFloat(record.dailyBudgetUsd)
+      }
+    })
+    .sort((a, b) => a.timestamp - b.timestamp)
+
+  // 获取预算值用于Y轴范围
+  const dailyBudget = actualDataPoints.length > 0 ? actualDataPoints[0].dailyBudget : 25
+
+  // 只使用实际数据点来绘制图表
+  const chartData = actualDataPoints
 
   // 计算趋势
   const validBalances = chartData.filter(d => d.balance !== null).map(d => d.balance as number)
@@ -139,7 +148,7 @@ export function UsageChart({ data }: UsageChartProps) {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart 
                 data={chartData} 
-                margin={{ top: 20, right: 30, left: 20, bottom: 10 }}
+                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
               >
                 <defs>
                   {/* 余额线条渐变 */}
@@ -168,12 +177,16 @@ export function UsageChart({ data }: UsageChartProps) {
                 />
                 
                 <XAxis 
-                  dataKey="hour" 
+                  dataKey="hourNumber" 
+                  type="number"
+                  scale="linear"
+                  domain={[0, 24]}
                   tick={{ fontSize: 12, fill: 'currentColor' }}
                   className="text-gray-500 dark:text-gray-400"
                   axisLine={false}
                   tickLine={false}
-                  interval={1} // 每2小时显示一个标签 (00:00, 02:00, 04:00, ...)
+                  ticks={[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24]}
+                  tickFormatter={(value) => `${Math.floor(value).toString().padStart(2, '0')}:00`}
                 />
                 
                 <YAxis 
@@ -181,7 +194,7 @@ export function UsageChart({ data }: UsageChartProps) {
                   className="text-gray-500 dark:text-gray-400"
                   axisLine={false}
                   tickLine={false}
-                  domain={['dataMin - 0.5', 'dataMax + 0.5']}
+                  domain={[-1, dailyBudget]}
                 />
                 
                 <Tooltip content={<CustomTooltip />} />
@@ -192,12 +205,7 @@ export function UsageChart({ data }: UsageChartProps) {
                   dataKey="balance"
                   stroke="url(#balanceLineGradient)"
                   strokeWidth={3}
-                  dot={{ 
-                    fill: '#3B82F6', 
-                    strokeWidth: 2, 
-                    r: 4,
-                    className: 'drop-shadow-lg'
-                  }}
+                  dot={false} // 隐藏所有数据点，创建平滑曲线
                   activeDot={{ 
                     r: 6, 
                     fill: '#3B82F6',
@@ -205,14 +213,14 @@ export function UsageChart({ data }: UsageChartProps) {
                     strokeWidth: 2,
                     className: 'drop-shadow-xl animate-pulse'
                   }}
-                  connectNulls={false}
+                  connectNulls={true} // 连接所有点创建平滑曲线
                 />
               </LineChart>
             </ResponsiveContainer>
           </div>
           
           {/* 数据为空时的占位图 */}
-          {validBalances.length === 0 && (
+          {actualDataPoints.length === 0 && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/50 dark:bg-gray-800/50 rounded-lg backdrop-blur-sm">
               <div className="text-gray-400 dark:text-gray-500 mb-4">
                 <BarChart3 className="w-16 h-16 mx-auto opacity-50" />
@@ -228,7 +236,7 @@ export function UsageChart({ data }: UsageChartProps) {
         </div>
         
         {/* 图例和统计信息 */}
-        <div className="mt-8 space-y-4">
+        <div className="mt-1 space-y-4">
           {/* 图例 */}
           <div className="flex flex-wrap items-center justify-center gap-6 text-sm">
             <div className="flex items-center gap-2">
@@ -240,7 +248,7 @@ export function UsageChart({ data }: UsageChartProps) {
           {/* 统计摘要 */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
             {[
-              { label: '数据点', value: validBalances.length },
+              { label: '数据点', value: actualDataPoints.length },
               { label: '最高余额', value: validBalances.length > 0 ? `$${Math.max(...validBalances).toFixed(2)}` : '$0.00' },
               { label: '最低余额', value: validBalances.length > 0 ? `$${Math.min(...validBalances).toFixed(2)}` : '$0.00' },
               { label: '变化幅度', value: `$${Math.abs(trend).toFixed(2)}` },
