@@ -152,7 +152,7 @@ export function DashboardCards({ data }: DashboardCardsProps) {
                 style={{ width: `${Math.min(dailyPercentage, 100)}%` }}
               />
             </div>
-            <p className="text-xs text-gray-400 dark:text-gray-500">
+            <p className="text-sm text-gray-400 dark:text-gray-500">
               剩余 ${(dailyBudget - dailyUsed).toFixed(4)}
             </p>
           </div>
@@ -239,7 +239,7 @@ export function DashboardCards({ data }: DashboardCardsProps) {
                 style={{ width: `${Math.min(monthlyPercentage, 100)}%` }}
               />
             </div>
-            <p className="text-xs text-gray-400 dark:text-gray-500">
+            <p className="text-sm text-gray-400 dark:text-gray-500">
               剩余 ${(monthlyBudget - monthlyUsed).toFixed(2)}
             </p>
           </div>
@@ -317,7 +317,7 @@ export function DashboardCards({ data }: DashboardCardsProps) {
             <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
               到期时间
             </p>
-            <p className="text-xs text-gray-400 dark:text-gray-500 font-mono">
+            <p className="text-sm text-gray-400 dark:text-gray-500 font-mono">
               {planExpiresAt.toLocaleDateString('zh-CN', {
                 year: 'numeric',
                 month: '2-digit',

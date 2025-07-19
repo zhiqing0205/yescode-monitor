@@ -13,19 +13,35 @@ export function UsageChart({ data }: UsageChartProps) {
   const { theme } = useTheme()
   const today = startOfDay(new Date())
   
+  // 生成24小时的时间轴
   const chartData = Array.from({ length: 24 }, (_, hour) => {
     const hourTime = addHours(today, hour)
-    const record = data.find(record => {
+    
+    // 查找该小时内最新的记录
+    const hourRecords = data.filter(record => {
       const recordTime = new Date(record.timestamp)
-      return recordTime.getHours() === hour
+      return recordTime.getHours() === hour && 
+             recordTime.getDate() === today.getDate() &&
+             recordTime.getMonth() === today.getMonth() &&
+             recordTime.getFullYear() === today.getFullYear()
     })
+    
+    // 如果有记录，取最新的一条
+    const latestRecord = hourRecords.length > 0 
+      ? hourRecords.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
+      : null
+    
+    // 计算当前余额 = daily_budget_usd - daily_spent_usd
+    const currentBalance = latestRecord 
+      ? parseFloat(latestRecord.dailyBudgetUsd) - parseFloat(latestRecord.dailySpentUsd)
+      : null
     
     return {
       hour: format(hourTime, 'HH:mm'),
       hourNumber: hour,
-      balance: record ? parseFloat(record.balanceUsd) : null,
-      spent: record ? parseFloat(record.dailySpentUsd) : null,
+      balance: currentBalance ? parseFloat(currentBalance.toFixed(2)) : null,
       timestamp: hourTime.getTime(),
+      hasData: latestRecord !== null
     }
   })
 
@@ -37,25 +53,28 @@ export function UsageChart({ data }: UsageChartProps) {
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
+      const dataPoint = payload[0].payload
       return (
         <div className="glass rounded-xl p-4 shadow-2xl border border-white/20 dark:border-gray-700/50">
           <p className="text-sm font-bold text-gray-900 dark:text-white mb-2">{`时间: ${label}`}</p>
-          {payload.map((entry: any, index: number) => (
-            <div key={index} className="flex items-center justify-between gap-4 mb-1">
+          {dataPoint.hasData ? (
+            <div className="flex items-center justify-between gap-4 mb-1">
               <div className="flex items-center gap-2">
                 <div 
                   className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: entry.color }}
+                  style={{ backgroundColor: payload[0].color }}
                 />
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {entry.dataKey === 'balance' ? '余额' : '当日已用'}
+                  当前余额
                 </span>
               </div>
               <span className="text-sm font-bold text-gray-900 dark:text-white">
-                ${entry.value?.toFixed(4) || '0.0000'}
+                ${payload[0].value?.toFixed(2) || '0.00'}
               </span>
             </div>
-          ))}
+          ) : (
+            <p className="text-sm text-gray-500 dark:text-gray-400">暂无数据</p>
+          )}
         </div>
       )
     }
@@ -80,10 +99,10 @@ export function UsageChart({ data }: UsageChartProps) {
             </div>
             <div>
               <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                24小时使用量趋势
+                当日余额变化趋势
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                实时余额变化与消费分析
+                显示当前余额 (预算 - 已用) 的24小时变化
               </p>
             </div>
           </div>
@@ -118,21 +137,15 @@ export function UsageChart({ data }: UsageChartProps) {
         <div className="relative">
           <div className="h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart 
+              <LineChart 
                 data={chartData} 
-                margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                margin={{ top: 20, right: 30, left: 20, bottom: 10 }}
               >
                 <defs>
-                  {/* 余额区域渐变 */}
-                  <linearGradient id="balanceGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.05}/>
-                  </linearGradient>
-                  
-                  {/* 消费区域渐变 */}
-                  <linearGradient id="spentGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.05}/>
+                  {/* 余额线条渐变 */}
+                  <linearGradient id="balanceLineGradient" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#3B82F6" />
+                    <stop offset="100%" stopColor="#8B5CF6" />
                   </linearGradient>
                   
                   {/* 网格渐变 - 亮色模式 */}
@@ -160,7 +173,7 @@ export function UsageChart({ data }: UsageChartProps) {
                   className="text-gray-500 dark:text-gray-400"
                   axisLine={false}
                   tickLine={false}
-                  interval="preserveStartEnd"
+                  interval={1} // 每2小时显示一个标签 (00:00, 02:00, 04:00, ...)
                 />
                 
                 <YAxis 
@@ -173,14 +186,12 @@ export function UsageChart({ data }: UsageChartProps) {
                 
                 <Tooltip content={<CustomTooltip />} />
                 
-                {/* 余额区域图 */}
-                <Area
+                {/* 余额折线图 */}
+                <Line
                   type="monotone"
                   dataKey="balance"
-                  stroke="#3B82F6"
+                  stroke="url(#balanceLineGradient)"
                   strokeWidth={3}
-                  fill="url(#balanceGradient)"
-                  connectNulls={false}
                   dot={{ 
                     fill: '#3B82F6', 
                     strokeWidth: 2, 
@@ -194,36 +205,14 @@ export function UsageChart({ data }: UsageChartProps) {
                     strokeWidth: 2,
                     className: 'drop-shadow-xl animate-pulse'
                   }}
-                />
-                
-                {/* 消费线条图 */}
-                <Line
-                  type="monotone"
-                  dataKey="spent"
-                  stroke="#8B5CF6"
-                  strokeWidth={3}
-                  strokeDasharray="5 5"
-                  dot={{ 
-                    fill: '#8B5CF6', 
-                    strokeWidth: 2, 
-                    r: 4,
-                    className: 'drop-shadow-lg'
-                  }}
-                  activeDot={{ 
-                    r: 6, 
-                    fill: '#8B5CF6',
-                    stroke: '#ffffff',
-                    strokeWidth: 2,
-                    className: 'drop-shadow-xl animate-pulse'
-                  }}
                   connectNulls={false}
                 />
-              </AreaChart>
+              </LineChart>
             </ResponsiveContainer>
           </div>
           
           {/* 数据为空时的占位图 */}
-          {chartData.every(d => d.balance === null) && (
+          {validBalances.length === 0 && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/50 dark:bg-gray-800/50 rounded-lg backdrop-blur-sm">
               <div className="text-gray-400 dark:text-gray-500 mb-4">
                 <BarChart3 className="w-16 h-16 mx-auto opacity-50" />
@@ -243,22 +232,18 @@ export function UsageChart({ data }: UsageChartProps) {
           {/* 图例 */}
           <div className="flex flex-wrap items-center justify-center gap-6 text-sm">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-3 bg-gradient-to-r from-blue-400 to-blue-600 rounded-sm shadow-sm"></div>
-              <span className="font-medium text-gray-700 dark:text-gray-300">剩余余额</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-0.5 bg-purple-500 rounded-full shadow-sm" style={{ backgroundImage: 'repeating-linear-gradient(to right, #8B5CF6 0, #8B5CF6 5px, transparent 5px, transparent 10px)' }}></div>
-              <span className="font-medium text-gray-700 dark:text-gray-300">累计消费</span>
+              <div className="w-4 h-3 bg-gradient-to-r from-blue-400 to-purple-600 rounded-sm shadow-sm"></div>
+              <span className="font-medium text-gray-700 dark:text-gray-300">当前余额</span>
             </div>
           </div>
           
           {/* 统计摘要 */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
             {[
-              { label: '数据点', value: chartData.filter(d => d.balance !== null).length },
-              { label: '最高余额', value: `$${Math.max(...validBalances, 0).toFixed(4)}` },
-              { label: '最低余额', value: `$${Math.min(...validBalances, 0).toFixed(4)}` },
-              { label: '变化幅度', value: `$${Math.abs(trend).toFixed(4)}` },
+              { label: '数据点', value: validBalances.length },
+              { label: '最高余额', value: validBalances.length > 0 ? `$${Math.max(...validBalances).toFixed(2)}` : '$0.00' },
+              { label: '最低余额', value: validBalances.length > 0 ? `$${Math.min(...validBalances).toFixed(2)}` : '$0.00' },
+              { label: '变化幅度', value: `$${Math.abs(trend).toFixed(2)}` },
             ].map((stat, index) => (
               <div key={index} className="text-center">
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{stat.label}</p>
