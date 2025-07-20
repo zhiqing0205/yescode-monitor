@@ -1,145 +1,181 @@
-# PackyCode Monitor
+# PackyCode 监控系统
 
-A Next.js application for monitoring PackyCode usage with real-time tracking, notifications, and analytics.
+一个基于 Next.js 构建的 PackyCode 使用量监控应用，提供实时跟踪、通知推送和数据分析功能。
 
-## Features
+## 功能特性
 
-### 📊 Real-time Monitoring
-- 5-minute interval data collection
-- Live dashboard with usage statistics
-- 24-hour balance tracking with interactive charts
+### 📊 实时监控
+- 每 5 分钟自动采集数据
+- 实时仪表盘显示使用统计
+- 24 小时余额变化趋势图表
 
-### 📈 Dashboard
-- **Daily Usage Card**: Shows current day spending with progress bar
-- **Monthly Usage Card**: Displays monthly consumption against budget
-- **Subscription Card**: Days remaining until plan expiration
-- **Interactive Line Chart**: 24-hour balance tracking with hover details
+### 📈 监控面板
+- **日使用量卡片**：显示当日消费情况和预算进度
+- **月使用量卡片**：展示月度消费与预算对比
+- **订阅状态卡片**：显示套餐剩余天数和到期时间
+- **交互式折线图**：24 小时余额变化趋势，支持悬浮查看详情
 
-### 🔔 Smart Notifications (Bark)
-- Request failure alerts
-- Daily usage threshold alerts (50%, 80%, 95%)
-- Daily summary reports
-- Automatic daily reset notifications
+### 🔔 智能通知推送 (Bark)
+- API 请求失败告警
+- 日使用量阈值提醒（50%、80%、95%）
+- 每日使用量汇总报告
+- 自动重置通知和系统状态
 
-### 🎨 Modern UI
-- Responsive design for all devices
-- Dark mode toggle with system preference detection
-- Animated gradient background
-- Glass morphism effects
-- GitHub repository link
+### 🎨 现代化界面
+- 响应式设计，支持所有设备
+- 深色模式切换，自动跟随系统主题
+- 动态渐变背景效果
+- 玻璃拟态风格设计
+- GitHub 仓库链接集成
 
-### ⚡ Automated Tasks
-- **5-minute data collection**: Fetches and stores usage data
-- **Daily reset at midnight (UTC+8)**: Resets notification flags and sends daily summary
+### ⚡ 自动化任务
+- **5 分钟数据采集**：自动获取并存储使用数据
+- **每日重置（东八区零点）**：重置通知标志并发送日报
 
-## Tech Stack
+## 技术栈
 
-- **Frontend**: Next.js 15, React 19, TypeScript
-- **Styling**: Tailwind CSS, Lucide React icons
-- **Database**: PostgreSQL with Prisma ORM
-- **Charts**: Recharts
-- **Themes**: next-themes
-- **Deployment**: Vercel with Cron Jobs
-- **Notifications**: Bark API
+- **前端框架**: Next.js 15, React 19, TypeScript
+- **样式设计**: Tailwind CSS, Lucide React 图标
+- **数据库**: PostgreSQL + Prisma ORM
+- **图表组件**: Recharts
+- **主题管理**: next-themes
+- **时区处理**: Luxon (东八区标准化)
+- **部署平台**: Vercel + Cron Jobs
+- **推送通知**: Bark API
 
-## Database Schema
+## 数据库结构
 
-### UsageRecord
-Stores every 5-minute data collection with complete PackyCode API response.
+### UsageRecord (使用记录)
+存储每 5 分钟采集的完整 PackyCode API 响应数据，使用 BIGINT 自增主键和 UTC 时间戳。
 
-### DailyStats
-Tracks daily usage statistics and notification states.
+### DailyStats (日统计)
+跟踪每日使用统计和通知状态，基于东八区时间计算。
 
-### SystemLog
-Logs all system events, errors, and operations.
+### SystemLog (系统日志)
+记录所有系统事件、错误和操作日志。
 
-## Environment Variables
+## 环境变量配置
 
-Create a `.env` file based on `.env.example`:
+参考 `.env.example` 创建 `.env` 文件：
 
 ```bash
 DATABASE_URL="postgresql://username:password@host:port/database"
 PACKYCODE_JWT_TOKEN="your_jwt_token_here"
 BARK_URL="https://api.day.app/your_device_key"
 NEXT_PUBLIC_GITHUB_URL="https://github.com/yourusername/packycode-monitor"
+API_SECRET="your_api_secret_for_cron_jobs"
 ```
 
-## Quick Start
+## 快速开始
 
-1. **Install dependencies**:
+1. **安装依赖**：
    ```bash
    npm install
    ```
 
-2. **Set up database**:
+2. **配置数据库**：
    ```bash
    npx prisma migrate dev
    npx prisma generate
    ```
 
-3. **Configure environment variables**:
-   Copy `.env.example` to `.env` and fill in your values.
+3. **配置环境变量**：
+   复制 `.env.example` 为 `.env` 并填入相应配置。
 
-4. **Run development server**:
+4. **启动开发服务器**：
    ```bash
    npm run dev
    ```
 
-5. **Deploy to Vercel**:
-   The project includes `vercel.json` for automatic cron job setup.
+5. **部署到 Vercel**：
+   项目包含 `vercel.json` 配置，自动设置定时任务。
 
-## API Endpoints
+## API 接口
 
-- `GET /api/collect` - Fetch and store PackyCode data (triggered by cron)
-- `GET /api/daily-reset` - Reset daily stats and send summary (triggered by cron)
-- `GET /api/dashboard` - Get dashboard data for frontend
+- `POST /api/collect` - 获取并存储 PackyCode 数据（定时任务触发）
+- `POST /api/daily-reset` - 重置日统计并发送汇总（定时任务触发）
+- `GET /api/dashboard` - 获取仪表盘数据（前端调用）
 
-## Cron Jobs (Vercel)
+## 定时任务 (Vercel Cron)
 
-- **Data Collection**: Every 5 minutes (`*/5 * * * *`)
-- **Daily Reset**: Daily at midnight UTC+8 (`0 16 * * *`)
+- **数据采集**：每 5 分钟执行 (`*/5 * * * *`)
+- **日重置**：每日东八区零点执行 (`0 16 * * *`)
 
-## Deployment Notes
+## 部署说明
 
-1. **Database**: Set up PostgreSQL database (recommended: Neon, Supabase, or PlanetScale)
-2. **Environment Variables**: Configure in Vercel dashboard
-3. **Cron Jobs**: Automatically configured via `vercel.json`
+1. **数据库**：建议使用 Neon、Supabase 或 PlanetScale
+2. **环境变量**：在 Vercel 控制台配置
+3. **定时任务**：通过 `vercel.json` 自动配置
+4. **时区处理**：所有时间操作基于东八区（Asia/Shanghai）
 
-## Notification System
+## 通知系统
 
-The app sends Bark notifications for:
-- API request failures
-- Daily usage thresholds (50%, 80%, 95%)
-- Daily usage summaries
-- System errors
+应用会通过 Bark 发送以下通知：
+- API 请求失败告警
+- 日使用量阈值提醒（50%、80%、95%）
+- 每日使用量汇总报告
+- 系统错误通知
 
-Notification format: `Title / Message / Group:packycode`
+通知格式：`标题 / 消息内容 / 分组:packycode`
 
-## Development
+## 开发指令
 
 ```bash
-# Install dependencies
+# 安装依赖
 npm install
 
-# Start development server
+# 启动开发服务器
 npm run dev
 
-# Build for production
+# 构建生产版本
 npm run build
 
-# Start production server
+# 启动生产服务器
 npm start
 
-# Run database migrations
+# 运行数据库迁移
 npx prisma migrate dev
 
-# Reset database
+# 重置数据库
 npx prisma migrate reset
 
-# View database
+# 查看数据库
 npx prisma studio
+
+# 类型检查
+npm run typecheck
+
+# 代码检查
+npm run lint
 ```
 
-## License
+## 系统特色
 
-MIT License - see LICENSE file for details.
+### 时区处理
+- 使用 Luxon 库统一处理时区
+- 所有业务逻辑基于东八区时间
+- 数据库存储 UTC 时间，查询时转换为东八区
+- 无论部署在全球何处，都保持一致的时区体验
+
+### 数据架构
+- BIGINT 自增主键提升性能
+- 完整的 BigInt 和 Decimal 序列化处理
+- UTC 时间戳存储，业务层时区转换
+- 备份恢复机制保障数据安全
+
+### 用户体验
+- 单屏显示，无需滚动
+- 平滑曲线图表，东八区时间格式
+- 紧凑布局优化，适配各种屏幕
+- 深色模式支持，字体抗锯齿优化
+
+## 许可证
+
+MIT License - 详见 LICENSE 文件。
+
+## 贡献指南
+
+欢迎提交 Issue 和 Pull Request 来改进项目。请确保：
+- 遵循现有代码风格
+- 提交前运行 `npm run lint` 和 `npm run typecheck`
+- 详细描述变更内容和原因
