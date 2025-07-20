@@ -64,9 +64,27 @@ export function UsageChart({ data }: UsageChartProps) {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const dataPoint = payload[0].payload
+      
+      // 格式化时间显示，从timestamp转换为东八区时间
+      let timeDisplay = ''
+      let dateDisplay = ''
+      if (dataPoint.timestamp) {
+        const date = new Date(dataPoint.timestamp)
+        timeDisplay = format(date, 'HH:mm')
+        dateDisplay = format(date, 'yyyy-MM-dd')
+      } else {
+        // 如果没有timestamp，使用hourNumber转换
+        const hours = Math.floor(label)
+        const minutes = Math.round((label - hours) * 60)
+        timeDisplay = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+        dateDisplay = format(new Date(), 'yyyy-MM-dd')
+      }
+      
       return (
         <div className="glass rounded-xl p-4 shadow-2xl border border-white/20 dark:border-gray-700/50">
-          <p className="text-sm font-bold text-gray-900 dark:text-white mb-2">{`时间: ${label}`}</p>
+          <p className="text-sm font-bold text-gray-900 dark:text-white mb-2">
+            {`${dateDisplay} ${timeDisplay}`}
+          </p>
           {dataPoint.hasData ? (
             <div className="flex items-center justify-between gap-4 mb-1">
               <div className="flex items-center gap-2">
