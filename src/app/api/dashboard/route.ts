@@ -1,36 +1,102 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { DateTime } from 'luxon'
+
+const CHINA_TIMEZONE = 'Asia/Shanghai'
+
+// 将BigInt、Decimal和Date转换为字符串以便JSON序列化
+function serializeBigInt(obj: any): any {
+  if (obj === null || obj === undefined) return obj
+  
+  if (typeof obj === 'bigint') {
+    return obj.toString()
+  }
+  
+  // 处理Prisma的Decimal类型 - 更精确的检测
+  if (obj && typeof obj === 'object' && 
+      (obj.constructor?.name === 'Decimal' || 
+       obj.hasOwnProperty('d') && obj.hasOwnProperty('e') && obj.hasOwnProperty('s'))) {
+    return obj.toString()
+  }
+  
+  // 处理Date类型
+  if (obj instanceof Date) {
+    return obj.toISOString()
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(serializeBigInt)
+  }
+  
+  if (typeof obj === 'object') {
+    const result: any = {}
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = serializeBigInt(value)
+    }
+    return result
+  }
+  
+  return obj
+}
 
 export async function GET() {
   try {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    // 获取东八区的今天范围，然后转换为UTC用于数据库查询
+    const nowChina = DateTime.now().setZone(CHINA_TIMEZONE)
+    const todayStartChina = nowChina.startOf('day')
+    const todayEndChina = nowChina.endOf('day')
+    
+    // 转换为UTC时间范围用于查询数据库
+    const todayStartUTC = todayStartChina.toUTC().toJSDate()
+    const todayEndUTC = todayEndChina.toUTC().toJSDate()
+    
+    console.log(`东八区查询范围: ${todayStartChina.toISO()} 到 ${todayEndChina.toISO()}`)
+    console.log(`UTC查询范围: ${todayStartUTC.toISOString()} 到 ${todayEndUTC.toISOString()}`)
     
     const todayRecords = await prisma.usageRecord.findMany({
       where: {
         timestamp: {
-          gte: today,
-          lt: new Date(today.getTime() + 24 * 60 * 60 * 1000)
+          gte: todayStartUTC,
+          lte: todayEndUTC
         }
       },
       orderBy: { timestamp: 'asc' }
     })
 
+    console.log(`原始记录数量: ${todayRecords.length}`)
+    if (todayRecords.length > 0) {
+      console.log(`第一条记录: ID=${todayRecords[0].id}, timestamp=${todayRecords[0].timestamp.toISOString()}`)
+      console.log(`最后一条记录: ID=${todayRecords[todayRecords.length - 1].id}, timestamp=${todayRecords[todayRecords.length - 1].timestamp.toISOString()}`)
+    }
+
+    // 对于DailyStats，使用东八区的日期
+    const chinaDateOnly = todayStartChina.toFormat('yyyy-MM-dd')
+    console.log(`查询DailyStats日期: ${chinaDateOnly}`)
+    
     const todayStats = await prisma.dailyStats.findUnique({
-      where: { date: today }
+      where: { date: new Date(chinaDateOnly) }
     })
+
+    console.log(`DailyStats查询结果: ${todayStats ? `ID=${todayStats.id}` : '无'}`)
 
     const latestRecord = await prisma.usageRecord.findFirst({
       orderBy: { timestamp: 'desc' }
     })
 
+    console.log(`最新记录: ${latestRecord ? `ID=${latestRecord.id}` : '无'}`)
+
+    // 序列化数据，处理BigInt
+    const serializedData = {
+      todayRecords: serializeBigInt(todayRecords),
+      todayStats: serializeBigInt(todayStats),
+      latestRecord: serializeBigInt(latestRecord)
+    }
+
+    console.log(`Found ${todayRecords.length} records for today (China timezone)`)
+
     return NextResponse.json({
       success: true,
-      data: {
-        todayRecords,
-        todayStats,
-        latestRecord
-      }
+      data: serializedData
     })
   } catch (error) {
     console.error('Error fetching dashboard data:', error)

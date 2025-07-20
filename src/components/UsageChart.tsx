@@ -11,6 +11,8 @@ interface UsageChartProps {
 
 export function UsageChart({ data }: UsageChartProps) {
   const { theme } = useTheme()
+  
+  // 直接使用本地时间，因为环境已经是东八区
   const today = startOfDay(new Date())
   
   // 生成24小时的时间轴作为背景
@@ -29,9 +31,8 @@ export function UsageChart({ data }: UsageChartProps) {
   const actualDataPoints = data
     .filter(record => {
       const recordTime = new Date(record.timestamp)
-      return recordTime.getDate() === today.getDate() &&
-             recordTime.getMonth() === today.getMonth() &&
-             recordTime.getFullYear() === today.getFullYear()
+      const recordDay = startOfDay(recordTime)
+      return recordDay.getTime() === today.getTime()
     })
     .map(record => {
       const recordTime = new Date(record.timestamp)

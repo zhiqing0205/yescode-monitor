@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { fetchPackyCodeUserInfo, sendBarkNotification } from '@/lib/packycode'
 import { Decimal } from '@prisma/client/runtime/library'
+import { DateTime } from 'luxon'
+
+const CHINA_TIMEZONE = 'Asia/Shanghai'
 
 // 验证API密钥
 function validateApiKey(request: NextRequest) {
@@ -45,17 +48,19 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    // 使用东八区时间确定今天的日期，用于DailyStats查询
+    const nowChina = DateTime.now().setZone(CHINA_TIMEZONE)
+    const todayChina = nowChina.startOf('day')
+    const chinaDateOnly = todayChina.toFormat('yyyy-MM-dd')
     
     let dailyStats = await prisma.dailyStats.findUnique({
-      where: { date: today }
+      where: { date: new Date(chinaDateOnly) }
     })
 
     if (!dailyStats) {
       dailyStats = await prisma.dailyStats.create({
         data: {
-          date: today,
+          date: new Date(chinaDateOnly),
           startBalance: new Decimal(userInfo.daily_budget_usd),
           endBalance: new Decimal(userInfo.balance_usd),
           totalUsed: new Decimal(userInfo.daily_spent_usd),

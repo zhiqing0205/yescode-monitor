@@ -1,9 +1,10 @@
 import { PrismaClient } from '@prisma/client'
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
-
-export const prisma = globalForPrisma.prisma ?? new PrismaClient()
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+// 强制创建新的Prisma实例，禁用prepared statements避免缓存问题
+export const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL + '?pgbouncer=true&connection_limit=1&prepared_statements=false'
+    }
+  }
+})
