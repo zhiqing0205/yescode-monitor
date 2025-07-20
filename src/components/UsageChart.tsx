@@ -111,7 +111,7 @@ export function UsageChart({ data }: UsageChartProps) {
                 当日余额变化趋势
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                显示当前余额 (预算 - 已用) 的24小时变化
+                显示当日当前余额 (预算 - 已用) 的变化
               </p>
             </div>
           </div>
