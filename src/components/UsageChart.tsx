@@ -167,7 +167,7 @@ export function UsageChart({ data }: UsageChartProps) {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart 
                 data={chartData} 
-                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                margin={{ top: 10, right: 10, left: -20, bottom: -10 }}
                 style={{ outline: 'none' }}
               >
                 <defs>
@@ -256,7 +256,7 @@ export function UsageChart({ data }: UsageChartProps) {
         </div>
         
         {/* 图例和统计信息 */}
-        <div className="mt-1 space-y-4">
+        <div className="mt-2 space-y-2">
           {/* 图例 */}
           <div className="flex flex-wrap items-center justify-center gap-6 text-sm">
             <div className="flex items-center gap-2">
@@ -266,7 +266,7 @@ export function UsageChart({ data }: UsageChartProps) {
           </div>
           
           {/* 统计摘要 */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2 border-t border-gray-200/50 dark:border-gray-700/50">
             {[
               { label: '数据点', value: actualDataPoints.length },
               { label: '最高余额', value: validBalances.length > 0 ? `$${Math.max(...validBalances).toFixed(2)}` : '$0.00' },
@@ -275,7 +275,7 @@ export function UsageChart({ data }: UsageChartProps) {
             ].map((stat, index) => (
               <div key={index} className="text-center">
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{stat.label}</p>
-                <p className="text-sm font-bold text-gray-900 dark:text-white">{stat.value}</p>
+                <p className="text-base font-bold text-gray-900 dark:text-white">{stat.value}</p>
               </div>
             ))}
           </div>
