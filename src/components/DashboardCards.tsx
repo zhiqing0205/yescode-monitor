@@ -14,7 +14,7 @@ export function DashboardCards({ data }: DashboardCardsProps) {
         {[1, 2, 3].map((i) => (
           <div key={i} className="group relative overflow-hidden rounded-2xl glass hover-lift">
             <div className="absolute inset-0 bg-gradient-to-br from-gray-100/50 to-gray-200/50 dark:from-gray-800/50 dark:to-gray-900/50"></div>
-            <div className="relative p-6 sm:p-8">
+            <div className="relative p-4 sm:p-6">
               <div className="animate-pulse space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded-lg w-24"></div>
@@ -85,9 +85,9 @@ export function DashboardCards({ data }: DashboardCardsProps) {
         {/* 装饰性光效 */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/20 to-transparent rounded-full blur-2xl transform translate-x-16 -translate-y-16"></div>
         
-        <div className="relative p-6 sm:p-8">
+        <div className="relative p-4 sm:p-6">
           {/* 头部 */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className={`p-3 rounded-xl shadow-lg ${
                 dailyStatus.color === 'red' ? 'bg-red-500 text-white' :
@@ -120,8 +120,8 @@ export function DashboardCards({ data }: DashboardCardsProps) {
           </div>
 
           {/* 金额显示 */}
-          <div className="mb-6">
-            <p className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+          <div className="mb-4">
+            <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
               ${dailyUsed.toFixed(4)}
             </p>
             <div className="flex items-center justify-between text-sm">
@@ -172,9 +172,9 @@ export function DashboardCards({ data }: DashboardCardsProps) {
         {/* 装饰性光效 */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/20 to-transparent rounded-full blur-2xl transform translate-x-16 -translate-y-16"></div>
         
-        <div className="relative p-6 sm:p-8">
+        <div className="relative p-4 sm:p-6">
           {/* 头部 */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className={`p-3 rounded-xl shadow-lg ${
                 monthlyStatus.color === 'red' ? 'bg-red-500 text-white' :
@@ -207,8 +207,8 @@ export function DashboardCards({ data }: DashboardCardsProps) {
           </div>
 
           {/* 金额显示 */}
-          <div className="mb-6">
-            <p className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+          <div className="mb-4">
+            <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
               ${monthlyUsed.toFixed(2)}
             </p>
             <div className="flex items-center justify-between text-sm">
@@ -259,9 +259,9 @@ export function DashboardCards({ data }: DashboardCardsProps) {
         {/* 装饰性光效 */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/20 to-transparent rounded-full blur-2xl transform translate-x-16 -translate-y-16"></div>
         
-        <div className="relative p-6 sm:p-8">
+        <div className="relative p-4 sm:p-6">
           {/* 头部 */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className={`p-3 rounded-xl shadow-lg ${
                 subscriptionStatus.color === 'red' ? 'bg-red-500 text-white' :
@@ -294,8 +294,8 @@ export function DashboardCards({ data }: DashboardCardsProps) {
           </div>
 
           {/* 天数显示 */}
-          <div className="mb-6">
-            <p className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+          <div className="mb-4">
+            <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
               {daysUntilExpiry} <span className="text-lg font-medium text-gray-500 dark:text-gray-400">天</span>
             </p>
             <div className="flex items-center justify-between text-sm">

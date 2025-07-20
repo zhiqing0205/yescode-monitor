@@ -118,9 +118,9 @@ export function UsageChart({ data }: UsageChartProps) {
       <div className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-br from-blue-400/10 to-purple-600/10 rounded-full blur-3xl transform -translate-x-32 -translate-y-32"></div>
       <div className="absolute bottom-0 right-0 w-64 h-64 bg-gradient-to-br from-purple-400/10 to-indigo-600/10 rounded-full blur-3xl transform translate-x-32 translate-y-32"></div>
       
-      <div className="relative p-6 sm:p-8">
+      <div className="relative p-4 sm:p-6">
         {/* 头部区域 */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
           <div className="flex items-center gap-4">
             <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg">
               <BarChart3 className="w-6 h-6" />
@@ -163,11 +163,12 @@ export function UsageChart({ data }: UsageChartProps) {
         
         {/* 图表容器 */}
         <div className="relative">
-          <div className="h-80 w-full">
+          <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart 
                 data={chartData} 
                 margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                style={{ outline: 'none' }}
               >
                 <defs>
                   {/* 余额线条渐变 */}

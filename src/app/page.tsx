@@ -57,9 +57,9 @@ export default function Dashboard() {
       
       {/* 主要内容 */}
       <div className="relative z-10 min-h-screen">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           {/* 头部区域 */}
-          <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 sm:mb-12 gap-4 sm:gap-0">
+          <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4 sm:gap-0">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-2xl bg-gradient-primary text-white shadow-lg animate-pulse-glow">
                 <Activity className="w-7 h-7" />
@@ -115,7 +115,7 @@ export default function Dashboard() {
 
           {/* 加载状态 */}
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-16 sm:py-24">
+            <div className="flex flex-col items-center justify-center py-8 sm:py-12">
               <div className="relative">
                 <div className="w-16 h-16 border-4 border-blue-200 dark:border-blue-800 rounded-full animate-spin border-t-blue-600 dark:border-t-blue-400"></div>
                 <div className="absolute inset-0 w-16 h-16 border-4 border-transparent rounded-full animate-ping border-t-blue-400"></div>
@@ -125,7 +125,7 @@ export default function Dashboard() {
               </p>
             </div>
           ) : (
-            <div className="space-y-8 sm:space-y-12">
+            <div className="space-y-6 sm:space-y-8">
               {/* 仪表板卡片 */}
               <div className="animate-breath">
                 <DashboardCards data={data} />
@@ -139,7 +139,7 @@ export default function Dashboard() {
           )}
 
           {/* 底部信息 */}
-          <footer className="mt-16 sm:mt-20 text-center">
+          <footer className="sm:mt-12 text-center">
             <div className="flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-500">
               <TrendingUp className="w-4 h-4" />
               <span>数据每 5 分钟自动更新</span>
