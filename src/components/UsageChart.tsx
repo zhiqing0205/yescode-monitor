@@ -214,7 +214,7 @@ export function UsageChart({ data }: UsageChartProps) {
                   className="text-gray-500 dark:text-gray-400"
                   axisLine={false}
                   tickLine={false}
-                  domain={[-1, dailyBudget]}
+                  domain={[-1, dailyBudget + 1]}
                 />
                 
                 <Tooltip content={<CustomTooltip />} />
