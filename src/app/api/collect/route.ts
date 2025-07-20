@@ -6,6 +6,39 @@ import { DateTime } from 'luxon'
 
 const CHINA_TIMEZONE = 'Asia/Shanghai'
 
+// 序列化BigInt、Decimal和Date类型
+function serializeData(obj: any): any {
+  if (obj === null || obj === undefined) return obj
+  
+  if (typeof obj === 'bigint') {
+    return obj.toString()
+  }
+  
+  if (obj && typeof obj === 'object' && 
+      (obj.constructor?.name === 'Decimal' || 
+       obj.hasOwnProperty('d') && obj.hasOwnProperty('e') && obj.hasOwnProperty('s'))) {
+    return obj.toString()
+  }
+  
+  if (obj instanceof Date) {
+    return obj.toISOString()
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(serializeData)
+  }
+  
+  if (typeof obj === 'object') {
+    const result: any = {}
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = serializeData(value)
+    }
+    return result
+  }
+  
+  return obj
+}
+
 // 验证API密钥
 function validateApiKey(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -123,7 +156,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: userInfo,
-      recordId: usageRecord.id
+      recordId: serializeData(usageRecord.id)
     })
   } catch (error) {
     console.error('Error fetching PackyCode data:', error)

@@ -1,6 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendBarkNotification } from '@/lib/packycode'
+import { DateTime } from 'luxon'
+
+const CHINA_TIMEZONE = 'Asia/Shanghai'
+
+// 序列化BigInt、Decimal和Date类型
+function serializeData(obj: any): any {
+  if (obj === null || obj === undefined) return obj
+  
+  if (typeof obj === 'bigint') {
+    return obj.toString()
+  }
+  
+  if (obj && typeof obj === 'object' && 
+      (obj.constructor?.name === 'Decimal' || 
+       obj.hasOwnProperty('d') && obj.hasOwnProperty('e') && obj.hasOwnProperty('s'))) {
+    return obj.toString()
+  }
+  
+  if (obj instanceof Date) {
+    return obj.toISOString()
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(serializeData)
+  }
+  
+  if (typeof obj === 'object') {
+    const result: any = {}
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = serializeData(value)
+    }
+    return result
+  }
+  
+  return obj
+}
 
 // 验证API密钥
 function validateApiKey(request: NextRequest) {
@@ -26,12 +62,17 @@ export async function POST(request: NextRequest) {
     // 验证API密钥
     validateApiKey(request)
     
-    // 直接使用本地时间，因为环境已经是东八区
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    // 使用东八区时间确定日期
+    const nowChina = DateTime.now().setZone(CHINA_TIMEZONE)
+    const todayChina = nowChina.startOf('day')
+    const yesterdayChina = todayChina.minus({ days: 1 })
     
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
+    // 转换为日期格式用于数据库查询
+    const todayDateOnly = todayChina.toFormat('yyyy-MM-dd')
+    const yesterdayDateOnly = yesterdayChina.toFormat('yyyy-MM-dd')
+    
+    const today = new Date(todayDateOnly)
+    const yesterday = new Date(yesterdayDateOnly)
 
     const yesterdayStats = await prisma.dailyStats.findUnique({
       where: { date: yesterday }
@@ -52,7 +93,7 @@ export async function POST(request: NextRequest) {
           type: 'DAILY_RESET',
           message: 'Daily reset completed and summary sent',
           details: JSON.stringify({
-            date: yesterday.toISOString(),
+            date: yesterdayChina.toISO(),
             usage: usageAmount,
             percentage: usagePercentage
           }),
