@@ -81,7 +81,24 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                      yesterdayDataPoints.length > 0 ? yesterdayDataPoints[0].dailyBudget : 25
 
   // 只使用实际数据点来绘制图表
-  const chartData = activeTab === 'yesterday' ? yesterdayDataPoints : actualDataPoints
+  const rawChartData = activeTab === 'yesterday' ? yesterdayDataPoints : actualDataPoints
+  
+  // 检查是否需要显示数据点（当数据点较少或余额相同时）
+  const shouldShowDots = rawChartData.length <= 3 || 
+    (rawChartData.length > 0 && rawChartData.every(point => point.balance === rawChartData[0].balance))
+  
+  // 如果所有余额相同且只有一个点，为了显示连线，我们需要至少两个点
+  let chartData = rawChartData
+  if (rawChartData.length === 1) {
+    // 复制第一个点并稍微调整时间，确保有连线
+    const firstPoint = rawChartData[0]
+    const secondPoint = {
+      ...firstPoint,
+      hourNumber: firstPoint.hourNumber + 0.01, // 稍微增加时间
+      hour: firstPoint.hour // 保持显示时间相同
+    }
+    chartData = [firstPoint, secondPoint]
+  }
 
   // 处理30天数据
   const process30DaysData = () => {
@@ -110,7 +127,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
   const monthlyChartData = process30DaysData()
 
   // 计算趋势
-  const validBalances = chartData.filter(d => d.balance !== null).map(d => d.balance as number)
+  const validBalances = rawChartData.filter(d => d.balance !== null).map(d => d.balance as number)
   const trend = validBalances.length > 1 
     ? validBalances[validBalances.length - 1] - validBalances[0]
     : 0
@@ -391,11 +408,17 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                 
                 {/* 余额折线图 */}
                 <Line
-                  type="monotone"
+                  type="linear"
                   dataKey="balance"
                   stroke="url(#balanceLineGradient)"
                   strokeWidth={3}
-                  dot={false} // 隐藏所有数据点，创建平滑曲线
+                  dot={shouldShowDots ? {
+                    r: 4,
+                    fill: '#3B82F6',
+                    stroke: '#ffffff',
+                    strokeWidth: 2,
+                    className: 'drop-shadow-lg'
+                  } : false} // 根据条件显示或隐藏数据点
                   activeDot={{ 
                     r: 6, 
                     fill: '#3B82F6',
@@ -403,7 +426,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                     strokeWidth: 2,
                     className: 'drop-shadow-xl animate-pulse'
                   }}
-                  connectNulls={true} // 连接所有点创建平滑曲线
+                  connectNulls={false} // 确保连接所有有效点
                 />
                 </LineChart>
               )}
@@ -446,10 +469,10 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
             {(activeTab === 'today' || activeTab === 'yesterday') ? (
               [
-                { label: '数据点', value: chartData.length },
-                { label: '最高余额', value: chartData.length > 0 ? `$${Math.max(...chartData.map(d => d.balance)).toFixed(2)}` : '$0.00' },
-                { label: '最低余额', value: chartData.length > 0 ? `$${Math.min(...chartData.map(d => d.balance)).toFixed(2)}` : '$0.00' },
-                { label: '变化幅度', value: chartData.length > 1 ? `$${Math.abs(chartData[chartData.length - 1].balance - chartData[0].balance).toFixed(2)}` : '$0.00' },
+                { label: '数据点', value: rawChartData.length },
+                { label: '最高余额', value: rawChartData.length > 0 ? `$${Math.max(...rawChartData.map(d => d.balance)).toFixed(2)}` : '$0.00' },
+                { label: '最低余额', value: rawChartData.length > 0 ? `$${Math.min(...rawChartData.map(d => d.balance)).toFixed(2)}` : '$0.00' },
+                { label: '变化幅度', value: rawChartData.length > 1 ? `$${Math.abs(rawChartData[rawChartData.length - 1].balance - rawChartData[0].balance).toFixed(2)}` : '$0.00' },
               ].map((stat, index) => (
                 <div key={index} className="text-center">
                   <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{stat.label}</p>
