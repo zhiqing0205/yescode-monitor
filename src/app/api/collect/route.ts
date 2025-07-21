@@ -60,11 +60,22 @@ function validateApiKey(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('Starting collect API request...')
+    
     // 验证API密钥
-    validateApiKey(request)
+    try {
+      validateApiKey(request)
+      console.log('API key validation successful')
+    } catch (error) {
+      console.error('API key validation failed:', error)
+      throw error
+    }
     
+    console.log('Fetching PackyCode user info...')
     const userInfo = await fetchPackyCodeUserInfo()
+    console.log('PackyCode user info fetched successfully:', { userId: userInfo.user_id })
     
+    console.log('Creating usage record...')
     const usageRecord = await prisma.usageRecord.create({
       data: {
         balanceUsd: new Decimal(userInfo.balance_usd),
@@ -80,17 +91,20 @@ export async function POST(request: NextRequest) {
         dailyBudgetUsd: new Decimal(userInfo.daily_budget_usd),
       },
     })
+    console.log('Usage record created successfully:', { recordId: usageRecord.id.toString() })
 
     // 使用东八区时间确定今天的日期，用于DailyStats查询
     const nowChina = DateTime.now().setZone(CHINA_TIMEZONE)
     const todayChina = nowChina.startOf('day')
     const chinaDateOnly = todayChina.toFormat('yyyy-MM-dd')
+    console.log('Processing daily stats for date:', chinaDateOnly)
     
     let dailyStats = await prisma.dailyStats.findUnique({
       where: { date: new Date(chinaDateOnly) }
     })
 
     if (!dailyStats) {
+      console.log('Creating new daily stats record...')
       dailyStats = await prisma.dailyStats.create({
         data: {
           date: new Date(chinaDateOnly),
@@ -100,7 +114,9 @@ export async function POST(request: NextRequest) {
           usagePercentage: parseFloat(userInfo.daily_spent_usd) / parseFloat(userInfo.daily_budget_usd) * 100,
         },
       })
+      console.log('New daily stats record created:', { statsId: dailyStats.id.toString() })
     } else {
+      console.log('Updating existing daily stats record...', { statsId: dailyStats.id.toString() })
       const usagePercentage = parseFloat(userInfo.daily_spent_usd) / parseFloat(userInfo.daily_budget_usd) * 100
       
       dailyStats = await prisma.dailyStats.update({
@@ -111,8 +127,11 @@ export async function POST(request: NextRequest) {
           usagePercentage,
         },
       })
+      console.log('Daily stats updated, usage percentage:', usagePercentage.toFixed(2) + '%')
 
+      // 检查通知阈值
       if (usagePercentage >= 50 && !dailyStats.notified50) {
+        console.log('Sending 50% threshold notification...')
         await sendBarkNotification(
           'PackyCode Usage Alert',
           `Daily usage has reached ${usagePercentage.toFixed(1)}% (50% threshold)`,
@@ -123,6 +142,7 @@ export async function POST(request: NextRequest) {
           data: { notified50: true }
         })
       } else if (usagePercentage >= 80 && !dailyStats.notified80) {
+        console.log('Sending 80% threshold notification...')
         await sendBarkNotification(
           'PackyCode Usage Alert',
           `Daily usage has reached ${usagePercentage.toFixed(1)}% (80% threshold)`,
@@ -133,6 +153,7 @@ export async function POST(request: NextRequest) {
           data: { notified80: true }
         })
       } else if (usagePercentage >= 95 && !dailyStats.notified95) {
+        console.log('Sending 95% threshold notification...')
         await sendBarkNotification(
           'PackyCode Usage Critical',
           `Daily usage has reached ${usagePercentage.toFixed(1)}% (95% threshold)`,
@@ -145,6 +166,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.log('Creating system log...')
     await prisma.systemLog.create({
       data: {
         type: 'SUCCESS',
@@ -153,37 +175,49 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    console.log('Collect API completed successfully')
     return NextResponse.json({
       success: true,
       data: userInfo,
       recordId: serializeData(usageRecord.id)
     })
   } catch (error) {
-    console.error('Error fetching PackyCode data:', error)
+    console.error('Error in collect API:', error)
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
     
-    await prisma.systemLog.create({
-      data: {
-        type: 'ERROR',
-        message: 'Failed to fetch PackyCode usage data',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
-    })
+    try {
+      await prisma.systemLog.create({
+        data: {
+          type: 'ERROR',
+          message: 'Failed to fetch PackyCode usage data',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        },
+      })
+    } catch (logError) {
+      console.error('Failed to create system log:', logError)
+    }
 
     if (error instanceof Error && error.message.includes('API')) {
+      console.log('Returning 401 unauthorized response')
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }
       )
     }
 
-    await sendBarkNotification(
-      'PackyCode Monitor Error',
-      `Failed to fetch usage data: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      'packycode'
-    )
+    try {
+      await sendBarkNotification(
+        'PackyCode Monitor Error',
+        `Failed to fetch usage data: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'packycode'
+      )
+    } catch (notificationError) {
+      console.error('Failed to send error notification:', notificationError)
+    }
 
+    console.log('Returning 500 server error response')
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch PackyCode data' },
+      { success: false, error: 'Failed to fetch PackyCode data', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }

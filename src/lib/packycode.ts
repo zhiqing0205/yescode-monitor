@@ -19,18 +19,38 @@ export interface PackyCodeUser {
 }
 
 export async function fetchPackyCodeUserInfo(): Promise<PackyCodeUser> {
-  const response = await fetch('https://www.packycode.com/api/backend/users/info', {
-    headers: {
-      'Authorization': `Bearer ${process.env.PACKYCODE_JWT_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-  })
-
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`)
+  console.log('Calling PackyCode API...')
+  
+  if (!process.env.PACKYCODE_JWT_TOKEN) {
+    throw new Error('PACKYCODE_JWT_TOKEN environment variable is not set')
   }
+  
+  try {
+    const response = await fetch('https://www.packycode.com/api/backend/users/info', {
+      headers: {
+        'Authorization': `Bearer ${process.env.PACKYCODE_JWT_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+    })
 
-  return response.json()
+    console.log('PackyCode API response status:', response.status)
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('PackyCode API error response:', errorText)
+      throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`)
+    }
+
+    const data = await response.json()
+    console.log('PackyCode API response received successfully')
+    return data
+  } catch (error) {
+    console.error('Error in fetchPackyCodeUserInfo:', error)
+    if (error instanceof Error) {
+      throw new Error(`Failed to fetch PackyCode user info: ${error.message}`)
+    }
+    throw new Error('Failed to fetch PackyCode user info: Unknown error')
+  }
 }
 
 export async function sendBarkNotification(title: string, body: string, group?: string) {
