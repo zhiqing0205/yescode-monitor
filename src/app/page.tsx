@@ -9,6 +9,7 @@ import { UsageChart } from '@/components/UsageChart'
 
 interface DashboardData {
   todayRecords: any[]
+  monthlyStats: any[]
   todayStats: any
   latestRecord: any
 }
@@ -133,7 +134,7 @@ export default function Dashboard() {
 
               {/* 使用量图表 */}
               <div className="animate-breath" style={{ animationDelay: '1s' }}>
-                <UsageChart data={data?.todayRecords || []} />
+                <UsageChart data={data?.todayRecords || []} monthlyData={data?.monthlyStats || []} />
               </div>
             </div>
           )}

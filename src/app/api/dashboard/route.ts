@@ -85,9 +85,29 @@ export async function GET() {
 
     console.log(`最新记录: ${latestRecord ? `ID=${latestRecord.id}` : '无'}`)
 
+    // 获取近30天的DailyStats数据用于月度视图
+    const thirtyDaysAgoChina = todayStartChina.minus({ days: 30 })
+    const thirtyDaysAgoDate = new Date(thirtyDaysAgoChina.toFormat('yyyy-MM-dd'))
+    const todayDate = new Date(todayStartChina.toFormat('yyyy-MM-dd'))
+    
+    console.log(`30天DailyStats查询范围: ${thirtyDaysAgoChina.toFormat('yyyy-MM-dd')} 到 ${todayStartChina.toFormat('yyyy-MM-dd')}`)
+    
+    const monthlyStats = await prisma.dailyStats.findMany({
+      where: {
+        date: {
+          gte: thirtyDaysAgoDate,
+          lte: todayDate
+        }
+      },
+      orderBy: { date: 'asc' }
+    })
+
+    console.log(`30天DailyStats记录数量: ${monthlyStats.length}`)
+
     // 序列化数据，处理BigInt
     const serializedData = {
       todayRecords: serializeBigInt(todayRecords),
+      monthlyStats: serializeBigInt(monthlyStats),
       todayStats: serializeBigInt(todayStats),
       latestRecord: serializeBigInt(latestRecord)
     }

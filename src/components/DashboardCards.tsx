@@ -14,7 +14,7 @@ export function DashboardCards({ data }: DashboardCardsProps) {
         {[1, 2, 3].map((i) => (
           <div key={i} className="group relative overflow-hidden rounded-2xl glass hover-lift">
             <div className="absolute inset-0 bg-gradient-to-br from-gray-100/50 to-gray-200/50 dark:from-gray-800/50 dark:to-gray-900/50"></div>
-            <div className="relative p-4 sm:p-6">
+            <div className="relative p-3 sm:p-5">
               <div className="animate-pulse space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded-lg w-24"></div>
@@ -85,28 +85,28 @@ export function DashboardCards({ data }: DashboardCardsProps) {
         {/* 装饰性光效 */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/20 to-transparent rounded-full blur-2xl transform translate-x-16 -translate-y-16"></div>
         
-        <div className="relative p-4 sm:p-6">
+        <div className="relative p-3 sm:p-4">
           {/* 头部 */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className={`p-3 rounded-xl shadow-lg ${
+              <div className={`p-2 rounded-lg shadow-lg ${
                 dailyStatus.color === 'red' ? 'bg-red-500 text-white' :
                 dailyStatus.color === 'orange' ? 'bg-orange-500 text-white' :
                 dailyStatus.color === 'yellow' ? 'bg-yellow-500 text-white' :
                 'bg-green-500 text-white'
               }`}>
-                <DollarSign className="w-5 h-5" />
+                <DollarSign className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300">日使用量</h3>
+                <h3 className="text-base font-semibold text-gray-600 dark:text-gray-300">日使用量</h3>
                 <div className="flex items-center gap-2 mt-1">
-                  <dailyStatus.icon className={`w-3 h-3 ${
+                  <dailyStatus.icon className={`w-4 h-4 ${
                     dailyStatus.color === 'red' ? 'text-red-500' :
                     dailyStatus.color === 'orange' ? 'text-orange-500' :
                     dailyStatus.color === 'yellow' ? 'text-yellow-500' :
                     'text-green-500'
                   }`} />
-                  <span className={`text-xs font-medium ${
+                  <span className={`text-sm font-medium ${
                     dailyStatus.color === 'red' ? 'text-red-500' :
                     dailyStatus.color === 'orange' ? 'text-orange-500' :
                     dailyStatus.color === 'yellow' ? 'text-yellow-500' :
@@ -117,31 +117,31 @@ export function DashboardCards({ data }: DashboardCardsProps) {
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* 金额显示 */}
-          <div className="mb-4">
-            <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              ${dailyUsed.toFixed(4)}
-            </p>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500 dark:text-gray-400">
-                预算 ${dailyBudget.toFixed(2)}
-              </span>
-              <span className={`font-bold ${
-                dailyStatus.color === 'red' ? 'text-red-500' :
-                dailyStatus.color === 'orange' ? 'text-orange-500' :
-                dailyStatus.color === 'yellow' ? 'text-yellow-500' :
-                'text-green-500'
-              }`}>
-                {dailyPercentage.toFixed(1)}%
-              </span>
+            
+            {/* 数字部分 - 移到右边并增加上边距 */}
+            <div className="text-right mt-3">
+              <p className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+                ${dailyUsed.toFixed(4)}
+              </p>
+              <div className="flex items-center justify-end gap-2 text-base">
+                <span className="text-gray-500 dark:text-gray-400">
+                  /${dailyBudget.toFixed(2)}
+                </span>
+                <span className={`font-bold ${
+                  dailyStatus.color === 'red' ? 'text-red-500' :
+                  dailyStatus.color === 'orange' ? 'text-orange-500' :
+                  dailyStatus.color === 'yellow' ? 'text-yellow-500' :
+                  'text-green-500'
+                }`}>
+                  {dailyPercentage.toFixed(1)}%
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* 进度条 */}
+          {/* 进度条和剩余 */}
           <div className="space-y-2">
-            <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-1000 ${
                   dailyStatus.color === 'red' ? 'bg-gradient-to-r from-red-400 to-red-600' :
@@ -152,9 +152,14 @@ export function DashboardCards({ data }: DashboardCardsProps) {
                 style={{ width: `${Math.min(dailyPercentage, 100)}%` }}
               />
             </div>
-            <p className="text-sm text-gray-400 dark:text-gray-500">
-              剩余 ${(dailyBudget - dailyUsed).toFixed(4)}
-            </p>
+            <div className="flex justify-between items-center">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                剩余 ${(dailyBudget - dailyUsed).toFixed(4)}
+              </p>
+              <p className="text-sm text-gray-400 dark:text-gray-500">
+                预算 ${dailyBudget.toFixed(2)}
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -172,28 +177,28 @@ export function DashboardCards({ data }: DashboardCardsProps) {
         {/* 装饰性光效 */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/20 to-transparent rounded-full blur-2xl transform translate-x-16 -translate-y-16"></div>
         
-        <div className="relative p-4 sm:p-6">
+        <div className="relative p-3 sm:p-4">
           {/* 头部 */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className={`p-3 rounded-xl shadow-lg ${
+              <div className={`p-2 rounded-lg shadow-lg ${
                 monthlyStatus.color === 'red' ? 'bg-red-500 text-white' :
                 monthlyStatus.color === 'orange' ? 'bg-orange-500 text-white' :
                 monthlyStatus.color === 'yellow' ? 'bg-yellow-500 text-white' :
                 'bg-purple-500 text-white'
               }`}>
-                <CalendarDays className="w-5 h-5" />
+                <CalendarDays className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300">月使用量</h3>
+                <h3 className="text-base font-semibold text-gray-600 dark:text-gray-300">月使用量</h3>
                 <div className="flex items-center gap-2 mt-1">
-                  <monthlyStatus.icon className={`w-3 h-3 ${
+                  <monthlyStatus.icon className={`w-4 h-4 ${
                     monthlyStatus.color === 'red' ? 'text-red-500' :
                     monthlyStatus.color === 'orange' ? 'text-orange-500' :
                     monthlyStatus.color === 'yellow' ? 'text-yellow-500' :
                     'text-purple-500'
                   }`} />
-                  <span className={`text-xs font-medium ${
+                  <span className={`text-sm font-medium ${
                     monthlyStatus.color === 'red' ? 'text-red-500' :
                     monthlyStatus.color === 'orange' ? 'text-orange-500' :
                     monthlyStatus.color === 'yellow' ? 'text-yellow-500' :
@@ -204,31 +209,31 @@ export function DashboardCards({ data }: DashboardCardsProps) {
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* 金额显示 */}
-          <div className="mb-4">
-            <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              ${monthlyUsed.toFixed(2)}
-            </p>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500 dark:text-gray-400">
-                预算 ${monthlyBudget.toFixed(2)}
-              </span>
-              <span className={`font-bold ${
-                monthlyStatus.color === 'red' ? 'text-red-500' :
-                monthlyStatus.color === 'orange' ? 'text-orange-500' :
-                monthlyStatus.color === 'yellow' ? 'text-yellow-500' :
-                'text-purple-500'
-              }`}>
-                {monthlyPercentage.toFixed(1)}%
-              </span>
+            
+            {/* 数字部分 - 移到右边并增加上边距 */}
+            <div className="text-right mt-3">
+              <p className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+                ${monthlyUsed.toFixed(2)}
+              </p>
+              <div className="flex items-center justify-end gap-2 text-base">
+                <span className="text-gray-500 dark:text-gray-400">
+                  /${monthlyBudget.toFixed(2)}
+                </span>
+                <span className={`font-bold ${
+                  monthlyStatus.color === 'red' ? 'text-red-500' :
+                  monthlyStatus.color === 'orange' ? 'text-orange-500' :
+                  monthlyStatus.color === 'yellow' ? 'text-yellow-500' :
+                  'text-purple-500'
+                }`}>
+                  {monthlyPercentage.toFixed(1)}%
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* 进度条 */}
+          {/* 进度条和剩余 */}
           <div className="space-y-2">
-            <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-1000 ${
                   monthlyStatus.color === 'red' ? 'bg-gradient-to-r from-red-400 to-red-600' :
@@ -239,9 +244,14 @@ export function DashboardCards({ data }: DashboardCardsProps) {
                 style={{ width: `${Math.min(monthlyPercentage, 100)}%` }}
               />
             </div>
-            <p className="text-sm text-gray-400 dark:text-gray-500">
-              剩余 ${(monthlyBudget - monthlyUsed).toFixed(2)}
-            </p>
+            <div className="flex justify-between items-center">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                剩余 ${(monthlyBudget - monthlyUsed).toFixed(2)}
+              </p>
+              <p className="text-sm text-gray-400 dark:text-gray-500">
+                预算 ${monthlyBudget.toFixed(2)}
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -259,28 +269,28 @@ export function DashboardCards({ data }: DashboardCardsProps) {
         {/* 装饰性光效 */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/20 to-transparent rounded-full blur-2xl transform translate-x-16 -translate-y-16"></div>
         
-        <div className="relative p-4 sm:p-6">
+        <div className="relative p-3 sm:p-4">
           {/* 头部 */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className={`p-3 rounded-xl shadow-lg ${
+              <div className={`p-2 rounded-lg shadow-lg ${
                 subscriptionStatus.color === 'red' ? 'bg-red-500 text-white' :
                 subscriptionStatus.color === 'orange' ? 'bg-orange-500 text-white' :
                 subscriptionStatus.color === 'yellow' ? 'bg-yellow-500 text-white' :
                 'bg-blue-500 text-white'
               }`}>
-                <Clock className="w-5 h-5" />
+                <Clock className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300">订阅状态</h3>
+                <h3 className="text-base font-semibold text-gray-600 dark:text-gray-300">订阅状态</h3>
                 <div className="flex items-center gap-2 mt-1">
-                  <div className={`w-2 h-2 rounded-full ${
+                  <div className={`w-3 h-3 rounded-full ${
                     subscriptionStatus.color === 'red' ? 'bg-red-500' :
                     subscriptionStatus.color === 'orange' ? 'bg-orange-500' :
                     subscriptionStatus.color === 'yellow' ? 'bg-yellow-500' :
                     'bg-blue-500'
                   } animate-pulse`}></div>
-                  <span className={`text-xs font-medium ${
+                  <span className={`text-sm font-medium ${
                     subscriptionStatus.color === 'red' ? 'text-red-500' :
                     subscriptionStatus.color === 'orange' ? 'text-orange-500' :
                     subscriptionStatus.color === 'yellow' ? 'text-yellow-500' :
@@ -291,41 +301,43 @@ export function DashboardCards({ data }: DashboardCardsProps) {
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* 天数显示 */}
-          <div className="mb-4">
-            <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              {daysUntilExpiry} <span className="text-lg font-medium text-gray-500 dark:text-gray-400">天</span>
-            </p>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500 dark:text-gray-400">
-                距离到期
-              </span>
-              <span className={`font-bold capitalize ${
-                latestRecord.planType === 'basic' ? 'text-blue-500' :
-                latestRecord.planType === 'pro' ? 'text-purple-500' :
-                'text-green-500'
-              }`}>
-                {latestRecord.planType}
-              </span>
+            
+            {/* 数字部分 - 移到右边并增加上边距 */}
+            <div className="text-right mt-3">
+              <p className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+                {daysUntilExpiry} <span className="text-xl font-medium text-gray-500 dark:text-gray-400">天</span>
+              </p>
+              <div className="flex items-center justify-end gap-2 text-base">
+                <span className="text-gray-500 dark:text-gray-400">
+                  距离到期
+                </span>
+                <span className={`font-bold capitalize ${
+                  latestRecord.planType === 'basic' ? 'text-blue-500' :
+                  latestRecord.planType === 'pro' ? 'text-purple-500' :
+                  'text-green-500'
+                }`}>
+                  {latestRecord.planType}
+                </span>
+              </div>
             </div>
           </div>
 
           {/* 到期时间 */}
           <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
-              到期时间
-            </p>
-            <p className="text-sm text-gray-400 dark:text-gray-500 font-mono">
-              {planExpiresAt.toLocaleDateString('zh-CN', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}
-            </p>
+            <div className="flex justify-between items-center">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                到期时间
+              </p>
+              <p className="text-sm text-gray-400 dark:text-gray-500 font-mono">
+                {planExpiresAt.toLocaleDateString('zh-CN', {
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </p>
+            </div>
           </div>
         </div>
       </div>
