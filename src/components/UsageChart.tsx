@@ -13,10 +13,11 @@ interface UsageChartProps {
 
 export function UsageChart({ data, monthlyData = [] }: UsageChartProps) {
   const { theme } = useTheme()
-  const [activeTab, setActiveTab] = useState<'today' | '30days'>('today')
+  const [activeTab, setActiveTab] = useState<'today' | 'yesterday' | '30days'>('today')
   
   // 直接使用本地时间，因为环境已经是东八区
   const today = startOfDay(new Date())
+  const yesterday = startOfDay(subDays(new Date(), 1))
   
   // 生成24小时的时间轴作为背景
   const fullTimeAxis = Array.from({ length: 24 }, (_, hour) => {
@@ -52,11 +53,34 @@ export function UsageChart({ data, monthlyData = [] }: UsageChartProps) {
     })
     .sort((a, b) => a.timestamp - b.timestamp)
 
+  // 处理昨日数据点
+  const yesterdayDataPoints = data
+    .filter(record => {
+      const recordTime = new Date(record.timestamp)
+      const recordDay = startOfDay(recordTime)
+      return recordDay.getTime() === yesterday.getTime()
+    })
+    .map(record => {
+      const recordTime = new Date(record.timestamp)
+      const currentBalance = parseFloat(record.dailyBudgetUsd) - parseFloat(record.dailySpentUsd)
+      
+      return {
+        hour: format(recordTime, 'HH:mm'),
+        hourNumber: recordTime.getHours() + recordTime.getMinutes() / 60,
+        balance: parseFloat(currentBalance.toFixed(2)),
+        timestamp: recordTime.getTime(),
+        hasData: true,
+        dailyBudget: parseFloat(record.dailyBudgetUsd)
+      }
+    })
+    .sort((a, b) => a.timestamp - b.timestamp)
+
   // 获取预算值用于Y轴范围
-  const dailyBudget = actualDataPoints.length > 0 ? actualDataPoints[0].dailyBudget : 25
+  const dailyBudget = actualDataPoints.length > 0 ? actualDataPoints[0].dailyBudget : 
+                     yesterdayDataPoints.length > 0 ? yesterdayDataPoints[0].dailyBudget : 25
 
   // 只使用实际数据点来绘制图表
-  const chartData = actualDataPoints
+  const chartData = activeTab === 'yesterday' ? yesterdayDataPoints : actualDataPoints
 
   // 处理30天数据
   const process30DaysData = () => {
@@ -191,14 +215,16 @@ export function UsageChart({ data, monthlyData = [] }: UsageChartProps) {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
           <div className="flex items-center gap-4">
             <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg">
-              {activeTab === 'today' ? <BarChart3 className="w-6 h-6" /> : <Calendar className="w-6 h-6" />}
+              {activeTab === '30days' ? <Calendar className="w-6 h-6" /> : <BarChart3 className="w-6 h-6" />}
             </div>
             <div>
               <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                {activeTab === 'today' ? '当日余额变化趋势' : '近30天使用统计'}
+                {activeTab === 'today' ? '当日余额变化趋势' : 
+                 activeTab === 'yesterday' ? '昨日余额变化趋势' : '近30天使用统计'}
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                {activeTab === 'today' ? '显示当日当前余额 (预算 - 已用) 的变化' : '显示最近30天的每日使用量情况'}
+                {activeTab === 'today' ? '显示当日当前余额 (预算 - 已用) 的变化' : 
+                 activeTab === 'yesterday' ? '显示昨日余额 (预算 - 已用) 的变化' : '显示最近30天的每日使用量情况'}
               </p>
             </div>
           </div>
@@ -219,6 +245,17 @@ export function UsageChart({ data, monthlyData = [] }: UsageChartProps) {
                 今日
               </button>
               <button
+                onClick={() => setActiveTab('yesterday')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 ${
+                  activeTab === 'yesterday'
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                <Clock className="w-4 h-4" />
+                昨日
+              </button>
+              <button
                 onClick={() => setActiveTab('30days')}
                 className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 ${
                   activeTab === '30days'
@@ -237,7 +274,66 @@ export function UsageChart({ data, monthlyData = [] }: UsageChartProps) {
         <div className="relative">
           <div className="h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              {activeTab === 'today' ? (
+              {activeTab === '30days' ? (
+                <BarChart
+                  data={monthlyChartData}
+                  margin={{ top: 10, right: 10, left: -20, bottom: -5 }}
+                  style={{ outline: 'none' }}
+                >
+                  <defs>
+                    {/* 柱状图渐变 - 与折线图保持一致 */}
+                    <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#3B82F6" />
+                      <stop offset="100%" stopColor="#8B5CF6" />
+                    </linearGradient>
+                    
+                    {/* 网格渐变 - 亮色模式 */}
+                    <linearGradient id="gridGradient" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#E5E7EB" stopOpacity={0.2}/>
+                      <stop offset="100%" stopColor="#6B7280" stopOpacity={0.1}/>
+                    </linearGradient>
+                    
+                    {/* 网格渐变 - 暗色模式 */}
+                    <linearGradient id="gridGradientDark" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#374151" stopOpacity={0.3}/>
+                      <stop offset="100%" stopColor="#9CA3AF" stopOpacity={0.2}/>
+                    </linearGradient>
+                  </defs>
+                  
+                  <CartesianGrid 
+                    strokeDasharray="3 3" 
+                    stroke={theme === 'dark' ? "url(#gridGradientDark)" : "url(#gridGradient)"}
+                    strokeOpacity={0.6}
+                  />
+                  
+                  <XAxis 
+                    dataKey="dateDisplay"
+                    tick={{ fontSize: 11, fill: 'currentColor' }}
+                    className="text-gray-500 dark:text-gray-400"
+                    axisLine={false}
+                    tickLine={false}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  
+                  <YAxis 
+                    tick={{ fontSize: 12, fill: 'currentColor' }}
+                    className="text-gray-500 dark:text-gray-400"
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  
+                  <Tooltip content={<MonthlyTooltip />} />
+                  
+                  <Bar
+                    dataKey="usage"
+                    fill="url(#barGradient)"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={40}
+                  />
+                </BarChart>
+              ) : (
                 <LineChart 
                   data={chartData} 
                   margin={{ top: 10, right: 10, left: -20, bottom: -5 }}
@@ -309,65 +405,18 @@ export function UsageChart({ data, monthlyData = [] }: UsageChartProps) {
                   connectNulls={true} // 连接所有点创建平滑曲线
                 />
                 </LineChart>
-              ) : (
-                <BarChart
-                  data={monthlyChartData}
-                  margin={{ top: 20, right: 30, left: 20, bottom: -15 }}
-                  style={{ outline: 'none' }}
-                >
-                  <defs>
-                    {/* 柱状图渐变 - 与折线图保持一致 */}
-                    <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#3B82F6" />
-                      <stop offset="100%" stopColor="#8B5CF6" />
-                    </linearGradient>
-                  </defs>
-                  
-                  <CartesianGrid 
-                    strokeDasharray="3 3" 
-                    stroke={theme === 'dark' ? "url(#gridGradientDark)" : "url(#gridGradient)"}
-                    strokeOpacity={0.6}
-                  />
-                  
-                  <XAxis 
-                    dataKey="dateDisplay"
-                    tick={{ fontSize: 11, fill: 'currentColor' }}
-                    className="text-gray-500 dark:text-gray-400"
-                    axisLine={false}
-                    tickLine={false}
-                    angle={-45}
-                    textAnchor="end"
-                    height={60}
-                  />
-                  
-                  <YAxis 
-                    tick={{ fontSize: 12, fill: 'currentColor' }}
-                    className="text-gray-500 dark:text-gray-400"
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  
-                  <Tooltip content={<MonthlyTooltip />} />
-                  
-                  <Bar
-                    dataKey="usage"
-                    fill="url(#barGradient)"
-                    radius={[4, 4, 0, 0]}
-                    maxBarSize={40}
-                  />
-                </BarChart>
               )}
             </ResponsiveContainer>
           </div>
           
           {/* 数据为空时的占位图 */}
-          {(activeTab === 'today' && actualDataPoints.length === 0) && (
+          {((activeTab === 'today' && actualDataPoints.length === 0) || (activeTab === 'yesterday' && yesterdayDataPoints.length === 0)) && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/50 dark:bg-gray-800/50 rounded-lg backdrop-blur-sm">
               <div className="text-gray-400 dark:text-gray-500 mb-4">
                 <BarChart3 className="w-16 h-16 mx-auto opacity-50" />
               </div>
               <p className="text-gray-500 dark:text-gray-400 text-center font-medium">
-                暂无今日数据
+                {activeTab === 'today' ? '暂无今日数据' : '暂无昨日数据'}
               </p>
               <p className="text-gray-400 dark:text-gray-500 text-sm text-center mt-2">
                 数据将在首次收集后显示
@@ -382,24 +431,24 @@ export function UsageChart({ data, monthlyData = [] }: UsageChartProps) {
           <div className="flex flex-wrap items-center justify-center gap-6 text-sm">
             <div className="flex items-center gap-2">
               <div className={`w-4 h-3 rounded-sm shadow-sm ${
-                activeTab === 'today' 
-                  ? 'bg-gradient-to-r from-blue-400 to-purple-600' 
-                  : 'bg-gradient-to-b from-blue-500 to-blue-700'
+                activeTab === '30days'
+                  ? 'bg-gradient-to-b from-blue-500 to-purple-600' 
+                  : 'bg-gradient-to-r from-blue-400 to-purple-600'
               }`}></div>
               <span className="font-medium text-gray-700 dark:text-gray-300">
-                {activeTab === 'today' ? '当前余额' : '日使用量'}
+                {(activeTab === 'today' || activeTab === 'yesterday') ? '当前余额' : '日使用量'}
               </span>
             </div>
           </div>
           
           {/* 统计摘要 */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
-            {activeTab === 'today' ? (
+            {(activeTab === 'today' || activeTab === 'yesterday') ? (
               [
-                { label: '数据点', value: actualDataPoints.length },
-                { label: '最高余额', value: validBalances.length > 0 ? `$${Math.max(...validBalances).toFixed(2)}` : '$0.00' },
-                { label: '最低余额', value: validBalances.length > 0 ? `$${Math.min(...validBalances).toFixed(2)}` : '$0.00' },
-                { label: '变化幅度', value: `$${Math.abs(trend).toFixed(2)}` },
+                { label: '数据点', value: chartData.length },
+                { label: '最高余额', value: chartData.length > 0 ? `$${Math.max(...chartData.map(d => d.balance)).toFixed(2)}` : '$0.00' },
+                { label: '最低余额', value: chartData.length > 0 ? `$${Math.min(...chartData.map(d => d.balance)).toFixed(2)}` : '$0.00' },
+                { label: '变化幅度', value: chartData.length > 1 ? `$${Math.abs(chartData[chartData.length - 1].balance - chartData[0].balance).toFixed(2)}` : '$0.00' },
               ].map((stat, index) => (
                 <div key={index} className="text-center">
                   <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{stat.label}</p>

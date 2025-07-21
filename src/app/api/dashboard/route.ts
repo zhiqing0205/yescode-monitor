@@ -128,18 +128,20 @@ export async function GET() {
     const nowChina = DateTime.now().setZone(CHINA_TIMEZONE)
     const todayStartChina = nowChina.startOf('day')
     const todayEndChina = nowChina.endOf('day')
+    const yesterdayStartChina = nowChina.minus({ days: 1 }).startOf('day')
+    const yesterdayEndChina = nowChina.minus({ days: 1 }).endOf('day')
     
-    // 转换为UTC时间范围用于查询数据库
-    const todayStartUTC = todayStartChina.toUTC().toJSDate()
+    // 转换为UTC时间范围用于查询数据库 - 包含今日和昨日
+    const yesterdayStartUTC = yesterdayStartChina.toUTC().toJSDate()
     const todayEndUTC = todayEndChina.toUTC().toJSDate()
     
-    console.log(`东八区查询范围: ${todayStartChina.toISO()} 到 ${todayEndChina.toISO()}`)
-    console.log(`UTC查询范围: ${todayStartUTC.toISOString()} 到 ${todayEndUTC.toISOString()}`)
+    console.log(`东八区查询范围: ${yesterdayStartChina.toISO()} 到 ${todayEndChina.toISO()}`)
+    console.log(`UTC查询范围: ${yesterdayStartUTC.toISOString()} 到 ${todayEndUTC.toISOString()}`)
     
     const todayRecords = await prisma.usageRecord.findMany({
       where: {
         timestamp: {
-          gte: todayStartUTC,
+          gte: yesterdayStartUTC,
           lte: todayEndUTC
         }
       },
@@ -200,7 +202,7 @@ export async function GET() {
       tokenInfo: tokenInfo
     }
 
-    console.log(`Found ${todayRecords.length} records for today (China timezone)`)
+    console.log(`Found ${todayRecords.length} records for today and yesterday (China timezone)`)
 
     return NextResponse.json({
       success: true,

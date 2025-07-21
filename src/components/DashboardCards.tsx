@@ -51,6 +51,10 @@ export function DashboardCards({ data }: DashboardCardsProps) {
   const planExpiresAt = new Date(latestRecord.planExpiresAt)
   const daysUntilExpiry = differenceInDays(planExpiresAt, new Date())
 
+  // 订阅进度计算（假设总周期30天）
+  const subscriptionTotalDays = 30
+  const subscriptionProgress = Math.max(0, Math.min(100, ((subscriptionTotalDays - daysUntilExpiry) / subscriptionTotalDays) * 100))
+
   const getUsageStatus = (percentage: number) => {
     if (percentage >= 95) return { color: 'red', icon: AlertTriangle, label: '紧急' }
     if (percentage >= 80) return { color: 'orange', icon: AlertTriangle, label: '警告' }
@@ -79,6 +83,12 @@ export function DashboardCards({ data }: DashboardCardsProps) {
   const subscriptionStatus = getSubscriptionStatus(daysUntilExpiry)
   const tokenInfo = data?.tokenInfo
   const tokenStatus = tokenInfo ? getTokenStatus(tokenInfo.daysRemaining, tokenInfo.isValid) : { color: 'gray', icon: Shield, label: '未知' }
+
+  // Token进度计算（假设总周期7天）
+  const tokenTotalDays = 7
+  const tokenProgress = tokenInfo && tokenInfo.isValid 
+    ? Math.max(0, Math.min(100, ((tokenTotalDays - tokenInfo.daysRemaining) / tokenTotalDays) * 100))
+    : 100
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
@@ -134,9 +144,6 @@ export function DashboardCards({ data }: DashboardCardsProps) {
                 ${dailyUsed.toFixed(2)}
               </p>
               <div className="flex items-center justify-end gap-2 text-base">
-                <span className="text-gray-500 dark:text-gray-400">
-                  /${dailyBudget.toFixed(2)}
-                </span>
                 <span className={`font-bold ${
                   dailyStatus.color === 'red' ? 'text-red-500' :
                   dailyStatus.color === 'orange' ? 'text-orange-500' :
@@ -144,6 +151,9 @@ export function DashboardCards({ data }: DashboardCardsProps) {
                   'text-green-500'
                 }`}>
                   {dailyPercentage.toFixed(1)}%
+                </span>
+                <span className="text-gray-500 dark:text-gray-400">
+                  /${dailyBudget.toFixed(2)}
                 </span>
               </div>
             </div>
@@ -226,9 +236,6 @@ export function DashboardCards({ data }: DashboardCardsProps) {
                 ${monthlyUsed.toFixed(2)}
               </p>
               <div className="flex items-center justify-end gap-2 text-base">
-                <span className="text-gray-500 dark:text-gray-400">
-                  /${monthlyBudget.toFixed(2)}
-                </span>
                 <span className={`font-bold ${
                   monthlyStatus.color === 'red' ? 'text-red-500' :
                   monthlyStatus.color === 'orange' ? 'text-orange-500' :
@@ -236,6 +243,9 @@ export function DashboardCards({ data }: DashboardCardsProps) {
                   'text-purple-500'
                 }`}>
                   {monthlyPercentage.toFixed(1)}%
+                </span>
+                <span className="text-gray-500 dark:text-gray-400">
+                  /${monthlyBudget.toFixed(2)}
                 </span>
               </div>
             </div>
@@ -318,9 +328,6 @@ export function DashboardCards({ data }: DashboardCardsProps) {
                 {daysUntilExpiry} <span className="text-xl font-medium text-gray-500 dark:text-gray-400">天</span>
               </p>
               <div className="flex items-center justify-end gap-2 text-base">
-                <span className="text-gray-500 dark:text-gray-400">
-                  距离到期
-                </span>
                 <span className={`font-bold capitalize ${
                   latestRecord.planType === 'basic' ? 'text-blue-500' :
                   latestRecord.planType === 'pro' ? 'text-purple-500' :
@@ -328,12 +335,26 @@ export function DashboardCards({ data }: DashboardCardsProps) {
                 }`}>
                   {latestRecord.planType}
                 </span>
+                <span className="text-gray-500 dark:text-gray-400">
+                  距离到期
+                </span>
               </div>
             </div>
           </div>
 
-          {/* 到期时间 */}
+          {/* 进度条和剩余 */}
           <div className="space-y-2">
+            <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-1000 ${
+                  subscriptionStatus.color === 'red' ? 'bg-gradient-to-r from-red-400 to-red-600' :
+                  subscriptionStatus.color === 'orange' ? 'bg-gradient-to-r from-orange-400 to-orange-600' :
+                  subscriptionStatus.color === 'yellow' ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                  'bg-gradient-to-r from-blue-400 to-blue-600'
+                } animate-pulse-glow`}
+                style={{ width: `${Math.min(subscriptionProgress, 100)}%` }}
+              />
+            </div>
             <div className="flex justify-between items-center">
               <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
                 到期时间
@@ -412,13 +433,13 @@ export function DashboardCards({ data }: DashboardCardsProps) {
                     {tokenInfo.daysRemaining} <span className="text-xl font-medium text-gray-500 dark:text-gray-400">天</span>
                   </p>
                   <div className="flex items-center justify-end gap-2 text-base">
-                    <span className="text-gray-500 dark:text-gray-400">
-                      剩余时间
-                    </span>
                     <span className={`font-bold ${
                       tokenInfo.isValid ? 'text-emerald-500' : 'text-red-500'
                     }`}>
                       {tokenInfo.isValid ? '有效' : '已过期'}
+                    </span>
+                    <span className="text-gray-500 dark:text-gray-400">
+                      剩余时间
                     </span>
                   </div>
                 </>
@@ -437,8 +458,20 @@ export function DashboardCards({ data }: DashboardCardsProps) {
             </div>
           </div>
 
-          {/* Token到期时间 */}
+          {/* 进度条和Token到期时间 */}
           <div className="space-y-2">
+            <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-1000 ${
+                  tokenStatus.color === 'red' ? 'bg-gradient-to-r from-red-400 to-red-600' :
+                  tokenStatus.color === 'orange' ? 'bg-gradient-to-r from-orange-400 to-orange-600' :
+                  tokenStatus.color === 'yellow' ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                  tokenStatus.color === 'green' ? 'bg-gradient-to-r from-emerald-400 to-emerald-600' :
+                  'bg-gradient-to-r from-gray-400 to-gray-600'
+                } animate-pulse-glow`}
+                style={{ width: `${Math.min(tokenProgress, 100)}%` }}
+              />
+            </div>
             <div className="flex justify-between items-center">
               <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
                 到期时间
