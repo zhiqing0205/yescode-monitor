@@ -106,7 +106,8 @@ async function sendBarkNotification(title: string, body: string, url?: string) {
 export async function POST() {
   try {
     // 检查API密钥认证
-    const authHeader = headers().get('authorization')
+    const headersList = await headers()
+    const authHeader = headersList.get('authorization')
     const apiSecret = process.env.API_SECRET
     
     if (!authHeader || !apiSecret) {
