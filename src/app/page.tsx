@@ -26,6 +26,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
+  const [countdown, setCountdown] = useState(0)
 
   useEffect(() => {
     setMounted(true)
@@ -33,6 +34,44 @@ export default function Dashboard() {
     const interval = setInterval(fetchDashboardData, 30000)
     return () => clearInterval(interval)
   }, [])
+
+  // 倒计时效果
+  useEffect(() => {
+    if (!data?.todayRecords?.length) return
+
+    // 计算下次更新时间
+    const calculateNextUpdateTime = () => {
+      const latestRecord = data.todayRecords[data.todayRecords.length - 1]
+      if (!latestRecord?.timestamp) return 300 // 默认5分钟
+
+      const lastUpdateTime = new Date(latestRecord.timestamp).getTime()
+      const nextUpdateTime = lastUpdateTime + (5 * 60 * 1000) // 5分钟后
+      const now = Date.now()
+      
+      return Math.max(0, Math.floor((nextUpdateTime - now) / 1000))
+    }
+
+    setCountdown(calculateNextUpdateTime())
+
+    const countdownInterval = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          // 倒计时结束，重新计算
+          return calculateNextUpdateTime()
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(countdownInterval)
+  }, [data?.todayRecords?.length]) // 只依赖数据长度，避免频繁重新计算
+
+  // 格式化倒计时显示
+  const formatCountdown = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}分${secs.toString().padStart(2, '0')}秒`
+  }
 
   const fetchDashboardData = async () => {
     try {
@@ -150,7 +189,14 @@ export default function Dashboard() {
           <footer className="mt-8 text-center">
             <div className="flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-500">
               <TrendingUp className="w-4 h-4" />
-              <span>数据每 5 分钟自动更新</span>
+              <span>
+                数据每 5 分钟自动更新
+                {countdown > 0 && (
+                  <span className="ml-1 text-gray-500 dark:text-gray-500 font-mono">
+                    • {formatCountdown(countdown)}后更新
+                  </span>
+                )}
+              </span>
             </div>
             <p className="mt-2 text-xs text-gray-400 dark:text-gray-600">
               基于 Next.js 构建 • 由 Vercel 托管

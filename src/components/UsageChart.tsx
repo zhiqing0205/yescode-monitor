@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
 import { format, startOfDay, addHours, subDays } from 'date-fns'
 import { BarChart3, TrendingDown, TrendingUp, Calendar, Clock } from 'lucide-react'
@@ -11,7 +11,8 @@ interface UsageChartProps {
   monthlyData?: any[] // 新增30天数据
 }
 
-export function UsageChart({ data, monthlyData = [] }: UsageChartProps) {
+// 使用React.memo防止不必要的重新渲染
+export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [] }: UsageChartProps) {
   const { theme } = useTheme()
   const [activeTab, setActiveTab] = useState<'today' | 'yesterday' | '30days'>('today')
   
@@ -473,4 +474,4 @@ export function UsageChart({ data, monthlyData = [] }: UsageChartProps) {
       </div>
     </div>
   )
-}
+})
