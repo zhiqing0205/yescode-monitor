@@ -1,0 +1,34 @@
+name: JWT Token and Subscription Expiration Notification
+
+on:
+  schedule:
+    # 每天中午12:00 UTC+8 触发 (UTC时间04:00)
+    - cron: '0 4 * * *'
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Send JWT Token and Subscription Expiration Notifications
+      env:
+        API_SECRET: ${{ secrets.API_SECRET }}
+        NOTIFICATION_URL: ${{ secrets.NOTIFICATION_API_URL }}
+      run: |
+        echo "Sending JWT token and subscription expiration notifications..."
+        response=$(curl -s -X POST "${NOTIFICATION_URL}/api/notify" \
+          -H "Authorization: Bearer ${API_SECRET}" \
+          -H "Content-Type: application/json")
+        
+        echo "Notification API Response: $response"
+        
+        # 检查响应是否包含错误
+        if echo "$response" | grep -q "\"success\":false"; then
+          echo "❌ Notification failed"
+          echo "$response" | jq '.'
+          exit 1
+        else
+          echo "✅ Notification check completed"
+          echo "$response" | jq '.'
+        fi

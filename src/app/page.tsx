@@ -12,6 +12,13 @@ interface DashboardData {
   monthlyStats: any[]
   todayStats: any
   latestRecord: any
+  tokenInfo: {
+    isValid: boolean
+    daysRemaining: number
+    expirationDate: string | null
+    expirationTime: string | null
+    error: string | null
+  }
 }
 
 export default function Dashboard() {
@@ -140,7 +147,7 @@ export default function Dashboard() {
           )}
 
           {/* 底部信息 */}
-          <footer className="mt-6 text-center">
+          <footer className="mt-8 text-center">
             <div className="flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-500">
               <TrendingUp className="w-4 h-4" />
               <span>数据每 5 分钟自动更新</span>

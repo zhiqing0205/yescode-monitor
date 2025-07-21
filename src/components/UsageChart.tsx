@@ -393,7 +393,7 @@ export function UsageChart({ data, monthlyData = [] }: UsageChartProps) {
           </div>
           
           {/* 统计摘要 */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2 border-t border-gray-200/50 dark:border-gray-700/50">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
             {activeTab === 'today' ? (
               [
                 { label: '数据点', value: actualDataPoints.length },
@@ -402,8 +402,8 @@ export function UsageChart({ data, monthlyData = [] }: UsageChartProps) {
                 { label: '变化幅度', value: `$${Math.abs(trend).toFixed(2)}` },
               ].map((stat, index) => (
                 <div key={index} className="text-center">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{stat.label}</p>
-                  <p className="text-base font-bold text-gray-900 dark:text-white">{stat.value}</p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{stat.label}</p>
+                  <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">{stat.value}</p>
                 </div>
               ))
             ) : (
@@ -414,8 +414,8 @@ export function UsageChart({ data, monthlyData = [] }: UsageChartProps) {
                 { label: '平均使用', value: monthlyChartData.length > 0 ? `$${(monthlyChartData.reduce((sum, d) => sum + d.usage, 0) / monthlyChartData.length).toFixed(2)}` : '$0.00' },
               ].map((stat, index) => (
                 <div key={index} className="text-center">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{stat.label}</p>
-                  <p className="text-base font-bold text-gray-900 dark:text-white">{stat.value}</p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{stat.label}</p>
+                  <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">{stat.value}</p>
                 </div>
               ))
             )}

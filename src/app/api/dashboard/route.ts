@@ -39,6 +39,89 @@ function serializeBigInt(obj: any): any {
   return obj
 }
 
+// JWT解析相关函数
+function base64UrlDecode(str: string): string {
+  // 替换 Base64 URL 字符
+  str = str.replace(/-/g, '+').replace(/_/g, '/')
+  
+  // 添加必要的填充
+  while (str.length % 4) {
+    str += '='
+  }
+  
+  return Buffer.from(str, 'base64').toString('utf8')
+}
+
+function parseJWT(token: string) {
+  try {
+    const parts = token.split('.')
+    
+    if (parts.length !== 3) {
+      throw new Error('JWT 格式无效，应该包含3个部分（header.payload.signature）')
+    }
+
+    const [headerEncoded, payloadEncoded, signature] = parts
+    
+    // 解码 header 和 payload
+    const header = JSON.parse(base64UrlDecode(headerEncoded))
+    const payload = JSON.parse(base64UrlDecode(payloadEncoded))
+    
+    return { header, payload, signature }
+  } catch (error) {
+    throw new Error(`JWT 解析失败: ${error instanceof Error ? error.message : error}`)
+  }
+}
+
+function getTokenExpirationInfo(token: string | undefined) {
+  if (!token) {
+    return {
+      isValid: false,
+      daysRemaining: 0,
+      expirationDate: null,
+      expirationTime: null,
+      error: 'Token不存在'
+    }
+  }
+
+  try {
+    const { payload } = parseJWT(token)
+    
+    if (!payload.exp) {
+      return {
+        isValid: true,
+        daysRemaining: Infinity,
+        expirationDate: null,
+        expirationTime: null,
+        error: null
+      }
+    }
+
+    const expirationDate = new Date(payload.exp * 1000)
+    const now = new Date()
+    const diffMs = expirationDate.getTime() - now.getTime()
+    const daysRemaining = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    
+    // 转换为东八区时间显示
+    const chinaExpirationTime = DateTime.fromJSDate(expirationDate).setZone(CHINA_TIMEZONE)
+    
+    return {
+      isValid: diffMs > 0,
+      daysRemaining: Math.max(0, daysRemaining),
+      expirationDate: chinaExpirationTime.toFormat('yyyy-MM-dd'),
+      expirationTime: chinaExpirationTime.toFormat('HH:mm:ss'),
+      error: null
+    }
+  } catch (error) {
+    return {
+      isValid: false,
+      daysRemaining: 0,
+      expirationDate: null,
+      expirationTime: null,
+      error: error instanceof Error ? error.message : 'Token解析失败'
+    }
+  }
+}
+
 export async function GET() {
   try {
     // 获取东八区的今天范围，然后转换为UTC用于数据库查询
@@ -104,12 +187,17 @@ export async function GET() {
 
     console.log(`30天DailyStats记录数量: ${monthlyStats.length}`)
 
+    // 获取JWT token信息
+    const jwtToken = process.env.PACKYCODE_JWT_TOKEN
+    const tokenInfo = getTokenExpirationInfo(jwtToken)
+
     // 序列化数据，处理BigInt
     const serializedData = {
       todayRecords: serializeBigInt(todayRecords),
       monthlyStats: serializeBigInt(monthlyStats),
       todayStats: serializeBigInt(todayStats),
-      latestRecord: serializeBigInt(latestRecord)
+      latestRecord: serializeBigInt(latestRecord),
+      tokenInfo: tokenInfo
     }
 
     console.log(`Found ${todayRecords.length} records for today (China timezone)`)

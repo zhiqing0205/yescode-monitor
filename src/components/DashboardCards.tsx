@@ -1,6 +1,6 @@
 'use client'
 
-import { CalendarDays, DollarSign, Clock, TrendingUp, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { CalendarDays, DollarSign, Clock, TrendingUp, AlertTriangle, CheckCircle2, Shield, ShieldAlert, ShieldCheck } from 'lucide-react'
 import { differenceInDays } from 'date-fns'
 
 interface DashboardCardsProps {
@@ -10,8 +10,8 @@ interface DashboardCardsProps {
 export function DashboardCards({ data }: DashboardCardsProps) {
   if (!data?.latestRecord) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-        {[1, 2, 3].map((i) => (
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
+        {[1, 2, 3, 4].map((i) => (
           <div key={i} className="group relative overflow-hidden rounded-2xl glass hover-lift">
             <div className="absolute inset-0 bg-gradient-to-br from-gray-100/50 to-gray-200/50 dark:from-gray-800/50 dark:to-gray-900/50"></div>
             <div className="relative p-3 sm:p-5">
@@ -68,10 +68,20 @@ export function DashboardCards({ data }: DashboardCardsProps) {
     return { color: 'green', label: '充足' }
   }
 
+  const getTokenStatus = (daysRemaining: number, isValid: boolean) => {
+    if (!isValid) return { color: 'red', icon: ShieldAlert, label: '已过期' }
+    if (daysRemaining <= 1) return { color: 'red', icon: ShieldAlert, label: '今日到期' }
+    if (daysRemaining <= 3) return { color: 'orange', icon: ShieldAlert, label: '即将到期' }
+    if (daysRemaining <= 7) return { color: 'yellow', icon: Shield, label: '剩余不多' }
+    return { color: 'green', icon: ShieldCheck, label: '正常' }
+  }
+
   const subscriptionStatus = getSubscriptionStatus(daysUntilExpiry)
+  const tokenInfo = data?.tokenInfo
+  const tokenStatus = tokenInfo ? getTokenStatus(tokenInfo.daysRemaining, tokenInfo.isValid) : { color: 'gray', icon: Shield, label: '未知' }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
       {/* 日使用量卡片 */}
       <div className="group relative overflow-hidden rounded-2xl glass hover-lift transition-all duration-500">
         {/* 渐变背景 */}
@@ -89,13 +99,13 @@ export function DashboardCards({ data }: DashboardCardsProps) {
           {/* 头部 */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg shadow-lg ${
+              <div className={`p-3 rounded-lg shadow-lg ${
                 dailyStatus.color === 'red' ? 'bg-red-500 text-white' :
                 dailyStatus.color === 'orange' ? 'bg-orange-500 text-white' :
                 dailyStatus.color === 'yellow' ? 'bg-yellow-500 text-white' :
                 'bg-green-500 text-white'
               }`}>
-                <DollarSign className="w-4 h-4" />
+                <DollarSign className="w-6 h-6" />
               </div>
               <div>
                 <h3 className="text-base font-semibold text-gray-600 dark:text-gray-300">日使用量</h3>
@@ -121,7 +131,7 @@ export function DashboardCards({ data }: DashboardCardsProps) {
             {/* 数字部分 - 移到右边并增加上边距 */}
             <div className="text-right mt-3">
               <p className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2">
-                ${dailyUsed.toFixed(4)}
+                ${dailyUsed.toFixed(2)}
               </p>
               <div className="flex items-center justify-end gap-2 text-base">
                 <span className="text-gray-500 dark:text-gray-400">
@@ -154,7 +164,7 @@ export function DashboardCards({ data }: DashboardCardsProps) {
             </div>
             <div className="flex justify-between items-center">
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                剩余 ${(dailyBudget - dailyUsed).toFixed(4)}
+                剩余 ${(dailyBudget - dailyUsed).toFixed(2)}
               </p>
               <p className="text-sm text-gray-400 dark:text-gray-500">
                 预算 ${dailyBudget.toFixed(2)}
@@ -181,13 +191,13 @@ export function DashboardCards({ data }: DashboardCardsProps) {
           {/* 头部 */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg shadow-lg ${
+              <div className={`p-3 rounded-lg shadow-lg ${
                 monthlyStatus.color === 'red' ? 'bg-red-500 text-white' :
                 monthlyStatus.color === 'orange' ? 'bg-orange-500 text-white' :
                 monthlyStatus.color === 'yellow' ? 'bg-yellow-500 text-white' :
                 'bg-purple-500 text-white'
               }`}>
-                <CalendarDays className="w-4 h-4" />
+                <CalendarDays className="w-6 h-6" />
               </div>
               <div>
                 <h3 className="text-base font-semibold text-gray-600 dark:text-gray-300">月使用量</h3>
@@ -273,13 +283,13 @@ export function DashboardCards({ data }: DashboardCardsProps) {
           {/* 头部 */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg shadow-lg ${
+              <div className={`p-3 rounded-lg shadow-lg ${
                 subscriptionStatus.color === 'red' ? 'bg-red-500 text-white' :
                 subscriptionStatus.color === 'orange' ? 'bg-orange-500 text-white' :
                 subscriptionStatus.color === 'yellow' ? 'bg-yellow-500 text-white' :
                 'bg-blue-500 text-white'
               }`}>
-                <Clock className="w-4 h-4" />
+                <Clock className="w-6 h-6" />
               </div>
               <div>
                 <h3 className="text-base font-semibold text-gray-600 dark:text-gray-300">订阅状态</h3>
@@ -332,10 +342,112 @@ export function DashboardCards({ data }: DashboardCardsProps) {
                 {planExpiresAt.toLocaleDateString('zh-CN', {
                   year: 'numeric',
                   month: '2-digit',
-                  day: '2-digit',
+                  day: '2-digit'
+                })} {planExpiresAt.toLocaleTimeString('zh-CN', {
                   hour: '2-digit',
-                  minute: '2-digit'
+                  minute: '2-digit',
+                  hour12: false
                 })}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* JWT Token状态卡片 */}
+      <div className="group relative overflow-hidden rounded-2xl glass hover-lift transition-all duration-500">
+        {/* 渐变背景 */}
+        <div className={`absolute inset-0 opacity-10 bg-gradient-to-br ${
+          tokenStatus.color === 'red' ? 'from-red-400 to-red-600' :
+          tokenStatus.color === 'orange' ? 'from-orange-400 to-orange-600' :
+          tokenStatus.color === 'yellow' ? 'from-yellow-400 to-yellow-600' :
+          tokenStatus.color === 'green' ? 'from-emerald-400 to-emerald-600' :
+          'from-gray-400 to-gray-600'
+        }`}></div>
+        
+        {/* 装饰性光效 */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/20 to-transparent rounded-full blur-2xl transform translate-x-16 -translate-y-16"></div>
+        
+        <div className="relative p-3 sm:p-4">
+          {/* 头部 */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className={`p-3 rounded-lg shadow-lg ${
+                tokenStatus.color === 'red' ? 'bg-red-500 text-white' :
+                tokenStatus.color === 'orange' ? 'bg-orange-500 text-white' :
+                tokenStatus.color === 'yellow' ? 'bg-yellow-500 text-white' :
+                tokenStatus.color === 'green' ? 'bg-emerald-500 text-white' :
+                'bg-gray-500 text-white'
+              }`}>
+                <tokenStatus.icon className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-600 dark:text-gray-300">Token状态</h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className={`w-3 h-3 rounded-full ${
+                    tokenStatus.color === 'red' ? 'bg-red-500' :
+                    tokenStatus.color === 'orange' ? 'bg-orange-500' :
+                    tokenStatus.color === 'yellow' ? 'bg-yellow-500' :
+                    tokenStatus.color === 'green' ? 'bg-emerald-500' :
+                    'bg-gray-500'
+                  } animate-pulse`}></div>
+                  <span className={`text-sm font-medium ${
+                    tokenStatus.color === 'red' ? 'text-red-500' :
+                    tokenStatus.color === 'orange' ? 'text-orange-500' :
+                    tokenStatus.color === 'yellow' ? 'text-yellow-500' :
+                    tokenStatus.color === 'green' ? 'text-emerald-500' :
+                    'text-gray-500'
+                  }`}>
+                    {tokenStatus.label}
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            {/* 数字部分 - 移到右边并增加上边距 */}
+            <div className="text-right mt-3">
+              {tokenInfo && !tokenInfo.error ? (
+                <>
+                  <p className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+                    {tokenInfo.daysRemaining} <span className="text-xl font-medium text-gray-500 dark:text-gray-400">天</span>
+                  </p>
+                  <div className="flex items-center justify-end gap-2 text-base">
+                    <span className="text-gray-500 dark:text-gray-400">
+                      剩余时间
+                    </span>
+                    <span className={`font-bold ${
+                      tokenInfo.isValid ? 'text-emerald-500' : 'text-red-500'
+                    }`}>
+                      {tokenInfo.isValid ? '有效' : '已过期'}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-2xl sm:text-3xl font-bold text-gray-500 dark:text-gray-400 mb-2">
+                    N/A
+                  </p>
+                  <div className="flex items-center justify-end gap-2 text-sm">
+                    <span className="text-red-500">
+                      {tokenInfo?.error || 'Token错误'}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Token到期时间 */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                到期时间
+              </p>
+              <p className="text-sm text-gray-400 dark:text-gray-500 font-mono">
+                {tokenInfo && tokenInfo.expirationDate && tokenInfo.expirationTime ? 
+                  `${tokenInfo.expirationDate.replace(/-/g, '/')} ${tokenInfo.expirationTime.substring(0, 5)}` : 
+                  '无法获取'
+                }
               </p>
             </div>
           </div>
