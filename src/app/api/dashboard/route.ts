@@ -128,23 +128,11 @@ export async function GET() {
     const nowChina = DateTime.now().setZone(CHINA_TIMEZONE)
     const todayStartChina = nowChina.startOf('day')
     const todayEndChina = nowChina.endOf('day')
-    const yesterdayStartChina = nowChina.minus({ days: 1 }).startOf('day')
-    const yesterdayEndChina = nowChina.minus({ days: 1 }).endOf('day')
     
-    // 转换为UTC时间范围用于查询数据库 - 包含今日和昨日
-    const yesterdayStartUTC = yesterdayStartChina.toUTC().toJSDate()
-    const todayEndUTC = todayEndChina.toUTC().toJSDate()
-    
-    console.log(`东八区查询范围: ${yesterdayStartChina.toISO()} 到 ${todayEndChina.toISO()}`)
-    console.log(`UTC查询范围: ${yesterdayStartUTC.toISOString()} 到 ${todayEndUTC.toISOString()}`)
+    // 查询所有历史数据以支持日历显示和历史数据查看
+    console.log(`查询所有 UsageRecord 历史数据`)
     
     const todayRecords = await prisma.usageRecord.findMany({
-      where: {
-        timestamp: {
-          gte: yesterdayStartUTC,
-          lte: todayEndUTC
-        }
-      },
       orderBy: { timestamp: 'asc' }
     })
 
@@ -202,7 +190,7 @@ export async function GET() {
       tokenInfo: tokenInfo
     }
 
-    console.log(`Found ${todayRecords.length} records for today and yesterday (China timezone)`)
+    console.log(`Found ${todayRecords.length} total historical records`)
 
     return NextResponse.json({
       success: true,

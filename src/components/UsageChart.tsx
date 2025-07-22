@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
-import { format, startOfDay, addHours, subDays } from 'date-fns'
+import { format, startOfDay, addHours, subDays, isSameDay } from 'date-fns'
 import { BarChart3, TrendingDown, TrendingUp, Calendar, Clock, Brain, AlertCircle, CheckCircle } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { predictDailyUsage, type PredictionResult, type DataPoint } from '@/lib/timeSeriesPrediction'
+import { DatePicker } from '@/components/DatePicker'
 
 interface UsageChartProps {
   data: any[]
@@ -15,13 +16,65 @@ interface UsageChartProps {
 // 使用React.memo防止不必要的重新渲染
 export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [] }: UsageChartProps) {
   const { theme } = useTheme()
-  const [activeTab, setActiveTab] = useState<'today' | 'yesterday' | '30days'>('today')
+  const [activeTab, setActiveTab] = useState<'today' | 'yesterday' | '30days' | 'custom'>('today')
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [prediction, setPrediction] = useState<PredictionResult | null>(null)
   const [isLoadingPrediction, setIsLoadingPrediction] = useState(false)
   
   // 直接使用本地时间，因为环境已经是东八区
   const today = startOfDay(new Date())
   const yesterday = startOfDay(subDays(new Date(), 1))
+  
+  // 获取有数据的日期列表
+  const availableDates = useMemo(() => {
+    const dates = new Set<string>()
+    data.forEach(record => {
+      // 直接使用数据库时间，系统环境已经是东八区
+      const recordTime = new Date(record.timestamp)
+      const recordDate = startOfDay(recordTime)
+      const dateKey = format(recordDate, 'yyyy-MM-dd')
+      dates.add(dateKey)
+    })
+    
+    const sortedDates = Array.from(dates)
+      .map(dateStr => startOfDay(new Date(dateStr)))
+      .sort((a, b) => b.getTime() - a.getTime())
+    
+    // 调试信息
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📅 Available dates found:', sortedDates.map(d => format(d, 'yyyy-MM-dd')))
+      console.log('📊 Total data records:', data.length)
+      
+      // 显示所有数据记录的日期分布
+      const dateDistribution = new Map()
+      data.forEach(r => {
+        const recordTime = new Date(r.timestamp)
+        const dateKey = format(startOfDay(recordTime), 'yyyy-MM-dd')
+        dateDistribution.set(dateKey, (dateDistribution.get(dateKey) || 0) + 1)
+      })
+      console.log('📊 Date distribution:', Object.fromEntries(dateDistribution))
+      console.log('📊 Unique dates in data:', Array.from(dates).sort())
+      
+      console.log('📊 Sample record timestamps:', data.slice(0, 5).map(r => {
+        const recordTime = new Date(r.timestamp)
+        return {
+          timestamp: r.timestamp,
+          localTime: format(recordTime, 'yyyy-MM-dd HH:mm:ss'),
+          localDate: format(startOfDay(recordTime), 'yyyy-MM-dd')
+        }
+      }))
+      
+      // 显示今天和昨天的具体时间
+      console.log('📅 Date references:', {
+        today: format(today, 'yyyy-MM-dd HH:mm:ss'),
+        yesterday: format(yesterday, 'yyyy-MM-dd HH:mm:ss'),
+        todayTimestamp: today.getTime(),
+        yesterdayTimestamp: yesterday.getTime()
+      })
+    }
+    
+    return sortedDates
+  }, [data])
   
   // 生成24小时的时间轴作为背景
   const fullTimeAxis = Array.from({ length: 24 }, (_, hour) => {
@@ -35,14 +88,64 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
     }
   })
   
-  // 处理实际数据点
+  // 获取目标日期 - 根据activeTab和selectedDate决定
+  const getTargetDate = () => {
+    switch (activeTab) {
+      case 'today':
+        return today
+      case 'yesterday':
+        return yesterday
+      case 'custom':
+        return selectedDate ? startOfDay(selectedDate) : today
+      default:
+        return today
+    }
+  }
+  
+  const targetDate = getTargetDate()
+  
+  // 添加目标日期调试信息
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🎯 Target date info:', {
+      activeTab,
+      selectedDate: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null,
+      targetDate: format(targetDate, 'yyyy-MM-dd'),
+      today: format(today, 'yyyy-MM-dd'),
+      yesterday: format(yesterday, 'yyyy-MM-dd')
+    })
+  }
+  
+  // 处理实际数据点 - 根据目标日期过滤
   const actualDataPoints = data
     .filter(record => {
+      // 直接使用数据库时间，系统环境已经是东八区
       const recordTime = new Date(record.timestamp)
       const recordDay = startOfDay(recordTime)
-      return recordDay.getTime() === today.getTime()
+      const targetDayTime = targetDate.getTime()
+      const recordDayTime = recordDay.getTime()
+      
+      const match = recordDayTime === targetDayTime
+      
+      // 添加调试信息 - 只显示前5个记录和匹配的记录
+      if (process.env.NODE_ENV === 'development') {
+        const recordIndex = data.indexOf(record)
+        if (recordIndex < 5 || match) {
+          console.log(`🔍 Date comparison [${recordIndex}]:`, {
+            targetDate: format(targetDate, 'yyyy-MM-dd'),
+            recordDate: format(recordDay, 'yyyy-MM-dd'), 
+            match,
+            recordTimestamp: record.timestamp,
+            localTime: format(recordTime, 'yyyy-MM-dd HH:mm:ss'),
+            targetTimestamp: targetDayTime,
+            recordDayTimestamp: recordDayTime
+          })
+        }
+      }
+      
+      return match
     })
     .map(record => {
+      // 直接使用数据库时间，系统环境已经是东八区
       const recordTime = new Date(record.timestamp)
       const currentBalance = parseFloat(record.dailyBudgetUsd) - parseFloat(record.dailySpentUsd)
       
@@ -70,11 +173,13 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
   // 处理昨日数据点
   const yesterdayDataPoints = data
     .filter(record => {
+      // 直接使用数据库时间，系统环境已经是东八区
       const recordTime = new Date(record.timestamp)
       const recordDay = startOfDay(recordTime)
       return recordDay.getTime() === yesterday.getTime()
     })
     .map(record => {
+      // 直接使用数据库时间
       const recordTime = new Date(record.timestamp)
       const currentBalance = parseFloat(record.dailyBudgetUsd) - parseFloat(record.dailySpentUsd)
       
@@ -133,6 +238,21 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
       }
     }
   }, [activeTab, actualDataPoints.length, dailyBudget]) // 恢复activeTab依赖
+  
+  // 处理日期选择
+  const handleDateSelect = (date: Date) => {
+    setSelectedDate(date)
+    setActiveTab('custom')
+    setPrediction(null) // 清除预测结果，因为只有今日才显示预测
+  }
+  
+  // 处理30天柱状图点击
+  const handleBarClick = (data: any) => {
+    if (data && data.date) {
+      const clickedDate = new Date(data.date)
+      handleDateSelect(clickedDate)
+    }
+  }
 
   // 只使用实际数据点来绘制图表
   const rawChartData = activeTab === 'yesterday' ? yesterdayDataPoints : actualDataPoints
@@ -397,11 +517,15 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
             <div>
               <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-1">
                 {activeTab === 'today' ? '当日余额变化趋势' : 
-                 activeTab === 'yesterday' ? '昨日余额变化趋势' : '近30天使用统计'}
+                 activeTab === 'yesterday' ? '昨日余额变化趋势' : 
+                 activeTab === 'custom' && selectedDate ? `${format(selectedDate, 'MM月dd日')} 余额变化趋势` :
+                 '近30天使用统计'}
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 {activeTab === 'today' ? '显示当日当前余额 (预算 - 已用) 的变化' : 
-                 activeTab === 'yesterday' ? '显示昨日余额 (预算 - 已用) 的变化' : '显示最近30天的每日使用量情况'}
+                 activeTab === 'yesterday' ? '显示昨日余额 (预算 - 已用) 的变化' : 
+                 activeTab === 'custom' && selectedDate ? `显示 ${format(selectedDate, 'yyyy-MM-dd')} 余额 (预算 - 已用) 的变化` :
+                 '显示最近30天的每日使用量情况'}
               </p>
             </div>
           </div>
@@ -445,8 +569,17 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
               </div>
             )}
             
-            {/* Tab切换按钮 */}
-            <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+            {/* 日历按钮和Tab切换按钮 */}
+            <div className="flex items-center gap-3">
+              {/* 日历选择器 */}
+              <DatePicker 
+                availableDates={availableDates}
+                onDateSelect={handleDateSelect}
+                selectedDate={selectedDate || undefined}
+              />
+              
+              {/* Tab切换按钮 */}
+              <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
               <button
                 onClick={() => setActiveTab('today')}
                 className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 ${
@@ -480,6 +613,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                 <Calendar className="w-4 h-4" />
                 30天
               </button>
+              </div>
             </div>
           </div>
         </div>
@@ -545,6 +679,8 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                     fill="url(#barGradient)"
                     radius={[4, 4, 0, 0]}
                     maxBarSize={40}
+                    onClick={handleBarClick}
+                    style={{ cursor: 'pointer' }}
                   />
                 </BarChart>
               ) : (
@@ -653,13 +789,18 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
           </div>
           
           {/* 数据为空时的占位图 */}
-          {((activeTab === 'today' && actualDataPoints.length === 0) || (activeTab === 'yesterday' && yesterdayDataPoints.length === 0)) && (
+          {((activeTab === 'today' && actualDataPoints.length === 0) || 
+            (activeTab === 'yesterday' && yesterdayDataPoints.length === 0) ||
+            (activeTab === 'custom' && actualDataPoints.length === 0)) && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/50 dark:bg-gray-800/50 rounded-lg backdrop-blur-sm">
               <div className="text-gray-400 dark:text-gray-500 mb-4">
                 <BarChart3 className="w-16 h-16 mx-auto opacity-50" />
               </div>
               <p className="text-gray-500 dark:text-gray-400 text-center font-medium">
-                {activeTab === 'today' ? '暂无今日数据' : '暂无昨日数据'}
+                {activeTab === 'today' ? '暂无今日数据' : 
+                 activeTab === 'yesterday' ? '暂无昨日数据' :
+                 activeTab === 'custom' && selectedDate ? `暂无 ${format(selectedDate, 'yyyy-MM-dd')} 数据` :
+                 '暂无数据'}
               </p>
               <p className="text-gray-400 dark:text-gray-500 text-sm text-center mt-2">
                 数据将在首次收集后显示
@@ -696,7 +837,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
           
           {/* 统计摘要 */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
-            {(activeTab === 'today' || activeTab === 'yesterday') ? (
+            {(activeTab === 'today' || activeTab === 'yesterday' || activeTab === 'custom') ? (
               [
                 { label: '数据点', value: rawChartData.length },
                 { label: '最高余额', value: rawChartData.length > 0 ? `$${Math.max(...rawChartData.map(d => d.balance)).toFixed(2)}` : '$0.00' },
