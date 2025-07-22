@@ -295,7 +295,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
               <div className="flex items-center gap-2">
                 <div 
                   className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: payload.find(p => p.dataKey === 'balance')?.color || '#3B82F6' }}
+                  style={{ backgroundColor: payload.find((p: any) => p.dataKey === 'balance')?.color || '#3B82F6' }}
                 />
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   当前余额
