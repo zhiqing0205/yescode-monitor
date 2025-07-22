@@ -191,11 +191,15 @@ export default function Dashboard() {
               <TrendingUp className="w-4 h-4" />
               <span>
                 数据每 5 分钟自动更新
-                {countdown > 0 && (
-                  <span className="ml-1 text-gray-500 dark:text-gray-500 font-mono">
+                {countdown === 0 ? (
+                  <span className="ml-1 text-blue-600 dark:text-blue-400">
+                    • 正在获取最新数据...
+                  </span>
+                ) : countdown > 0 ? (
+                  <span className="ml-1 text-gray-500 dark:text-gray-400">
                     • {formatCountdown(countdown)}后更新
                   </span>
-                )}
+                ) : null}
               </span>
             </div>
             <p className="mt-2 text-xs text-gray-400 dark:text-gray-600">
