@@ -1,10 +1,11 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
 import { format, startOfDay, addHours, subDays } from 'date-fns'
-import { BarChart3, TrendingDown, TrendingUp, Calendar, Clock } from 'lucide-react'
+import { BarChart3, TrendingDown, TrendingUp, Calendar, Clock, Brain, AlertCircle, CheckCircle } from 'lucide-react'
 import { useTheme } from 'next-themes'
+import { predictDailyUsage, type PredictionResult, type DataPoint } from '@/lib/timeSeriesPrediction'
 
 interface UsageChartProps {
   data: any[]
@@ -15,6 +16,8 @@ interface UsageChartProps {
 export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [] }: UsageChartProps) {
   const { theme } = useTheme()
   const [activeTab, setActiveTab] = useState<'today' | 'yesterday' | '30days'>('today')
+  const [prediction, setPrediction] = useState<PredictionResult | null>(null)
+  const [isLoadingPrediction, setIsLoadingPrediction] = useState(false)
   
   // 直接使用本地时间，因为环境已经是东八区
   const today = startOfDay(new Date())
@@ -43,9 +46,11 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
       const recordTime = new Date(record.timestamp)
       const currentBalance = parseFloat(record.dailyBudgetUsd) - parseFloat(record.dailySpentUsd)
       
+      const hourNumber = recordTime.getHours() + recordTime.getMinutes() / 60
+      
       return {
         hour: format(recordTime, 'HH:mm'),
-        hourNumber: recordTime.getHours() + recordTime.getMinutes() / 60, // 精确到分钟
+        hourNumber: hourNumber, // 精确到分钟
         balance: parseFloat(currentBalance.toFixed(2)),
         timestamp: recordTime.getTime(),
         hasData: true,
@@ -53,6 +58,14 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
       }
     })
     .sort((a, b) => a.timestamp - b.timestamp)
+    
+  console.log('📊 Processed actual data points:', actualDataPoints.map(p => ({
+    time: p.hour,
+    hourNumber: p.hourNumber.toFixed(3),
+    balance: p.balance,
+    budgetUsed: p.dailyBudget,
+    rawRecord: data.find(r => new Date(r.timestamp).getTime() === p.timestamp)
+  })))
 
   // 处理昨日数据点
   const yesterdayDataPoints = data
@@ -80,25 +93,144 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
   const dailyBudget = actualDataPoints.length > 0 ? actualDataPoints[0].dailyBudget : 
                      yesterdayDataPoints.length > 0 ? yesterdayDataPoints[0].dailyBudget : 25
 
+  // 预测功能 - 在今日标签页时启用
+  useEffect(() => {
+    if (activeTab === 'today' && actualDataPoints.length > 0) {
+      console.log('🔮 Starting prediction for today tab with', actualDataPoints.length, 'data points')
+      console.log('💰 Daily budget:', dailyBudget)
+      
+      setIsLoadingPrediction(true)
+      
+      // 准备预测数据
+      const predictionData: DataPoint[] = actualDataPoints.map(point => {
+        const dailySpent = dailyBudget - point.balance // 计算已花费
+        return {
+          timestamp: point.timestamp,
+          balance: point.balance,
+          dailySpent: dailySpent,
+          hourNumber: point.hourNumber
+        }
+      })
+      
+      console.log('🎯 Prediction input data:', predictionData.length, 'points')
+      
+      predictDailyUsage(predictionData, dailyBudget)
+        .then(result => {
+          console.log('✅ Prediction result received:', result)
+          setPrediction(result)
+          setIsLoadingPrediction(false)
+        })
+        .catch(error => {
+          console.error('❌ Prediction failed with error:', error)
+          setPrediction(null)
+          setIsLoadingPrediction(false)
+        })
+    } else {
+      console.log('⏸️ Not predicting - activeTab:', activeTab, 'dataPoints:', actualDataPoints.length)
+      if (activeTab !== 'today') {
+        setPrediction(null)
+        setIsLoadingPrediction(false)
+      }
+    }
+  }, [activeTab, actualDataPoints.length, dailyBudget]) // 恢复activeTab依赖
+
   // 只使用实际数据点来绘制图表
   const rawChartData = activeTab === 'yesterday' ? yesterdayDataPoints : actualDataPoints
+  
+  // 合并实际数据和预测数据用于图表显示
+  const combinedChartData = useMemo(() => {
+    if (activeTab === 'today' && prediction && prediction.predictionData.length > 0) {
+      console.log('🔄 Combining chart data')
+      console.log('📊 Prediction data from API:', prediction.predictionData.length)
+      console.log('🔍 Raw prediction data sample:', prediction.predictionData.slice(0, 3))
+      
+      // 创建一个完整的时间轴数据，包含实际值和预测值
+      const fullData = []
+      
+      // 添加实际数据点
+      const actualPoints = prediction.predictionData.filter(point => !point.isPredicted)
+      console.log('📈 Actual points from prediction:', actualPoints.length)
+      for (const point of actualPoints) {
+        fullData.push({
+          hourNumber: point.hourNumber,
+          balance: point.balance,
+          predictedBalance: null,
+          timestamp: point.timestamp,
+          hour: point.hour,
+          hasData: true,
+          isPredicted: false
+        })
+      }
+      
+      // 添加预测数据点
+      const predictedPoints = prediction.predictionData.filter(point => point.isPredicted)
+      console.log('🔮 Predicted points from prediction:', predictedPoints.length)
+      for (const point of predictedPoints) {
+        fullData.push({
+          hourNumber: point.hourNumber,
+          balance: null,
+          predictedBalance: point.balance,
+          timestamp: point.timestamp,
+          hour: point.hour,
+          hasData: false,
+          isPredicted: true
+        })
+      }
+      
+      const sortedData = fullData.sort((a, b) => a.hourNumber - b.hourNumber)
+      console.log('📈 Combined chart data:', sortedData.length)
+      console.log('🎯 Sample combined data:', sortedData.slice(0, 3))
+      console.log('🔮 Predicted points in combined:', sortedData.filter(d => d.predictedBalance !== null).length)
+      
+      return sortedData
+    }
+    console.log('📊 Using raw chart data:', rawChartData.length)
+    console.log('🔍 Prediction available:', !!prediction)
+    console.log('📉 Prediction data length:', prediction?.predictionData?.length || 0)
+    return rawChartData.map(point => ({
+      ...point,
+      predictedBalance: null,
+      isPredicted: false
+    }))
+  }, [activeTab, prediction, rawChartData])
   
   // 检查是否需要显示数据点（当数据点较少或余额相同时）
   const shouldShowDots = rawChartData.length <= 3 || 
     (rawChartData.length > 0 && rawChartData.every(point => point.balance === rawChartData[0].balance))
   
   // 如果所有余额相同且只有一个点，为了显示连线，我们需要至少两个点
-  let chartData = rawChartData
-  if (rawChartData.length === 1) {
+  let chartData = combinedChartData
+  if (rawChartData.length === 1 && (!prediction || prediction.predictionData.length <= 1)) {
     // 复制第一个点并稍微调整时间，确保有连线
     const firstPoint = rawChartData[0]
     const secondPoint = {
       ...firstPoint,
       hourNumber: firstPoint.hourNumber + 0.01, // 稍微增加时间
-      hour: firstPoint.hour // 保持显示时间相同
+      hour: firstPoint.hour, // 保持显示时间相同
+      predictedBalance: null,
+      isPredicted: false
     }
-    chartData = [firstPoint, secondPoint]
+    chartData = [firstPoint, secondPoint].map(point => ({
+      ...point,
+      predictedBalance: null,
+      isPredicted: false
+    }))
   }
+  
+  // 获取预测状态颜色
+  const getPredictionStatus = () => {
+    if (!prediction) return { color: 'gray', label: '暂无预测' }
+    
+    if (prediction.willExceedBudget || prediction.predictedEndTime) {
+      return { color: 'red', label: '预警' }
+    } else if (prediction.predictedSpent > dailyBudget * 0.8) {
+      return { color: 'orange', label: '提醒' }
+    } else {
+      return { color: 'green', label: '正常' }
+    }
+  }
+  
+  const predictionStatus = getPredictionStatus()
 
   // 处理30天数据
   const process30DaysData = () => {
@@ -156,24 +288,51 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
           <p className="text-sm font-bold text-gray-900 dark:text-white mb-2">
             {`${dateDisplay} ${timeDisplay}`}
           </p>
-          {dataPoint.hasData ? (
+          
+          {/* 实际余额显示 */}
+          {dataPoint.hasData || (!dataPoint.isPredicted && dataPoint.balance !== null) ? (
             <div className="flex items-center justify-between gap-4 mb-1">
               <div className="flex items-center gap-2">
                 <div 
                   className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: payload[0].color }}
+                  style={{ backgroundColor: payload.find(p => p.dataKey === 'balance')?.color || '#3B82F6' }}
                 />
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   当前余额
                 </span>
               </div>
               <span className="text-sm font-bold text-gray-900 dark:text-white">
-                ${payload[0].value?.toFixed(2) || '0.00'}
+                ${(dataPoint.balance || 0).toFixed(2)}
               </span>
             </div>
-          ) : (
+          ) : null}
+          
+          {/* 预测余额显示 */}
+          {dataPoint.isPredicted && dataPoint.predictedBalance !== null ? (
+            <div className="flex items-center justify-between gap-4 mb-1">
+              <div className="flex items-center gap-2">
+                <svg width="12" height="3" className="opacity-80">
+                  <line 
+                    x1="0" y1="1.5" x2="12" y2="1.5" 
+                    stroke="#F97316" 
+                    strokeWidth="2" 
+                    strokeDasharray="3 2"
+                  />
+                </svg>
+                <span className="text-sm font-medium text-orange-600 dark:text-orange-400">
+                  AI预测余额
+                </span>
+              </div>
+              <span className="text-sm font-bold text-orange-600 dark:text-orange-400">
+                ${(dataPoint.predictedBalance || 0).toFixed(2)}
+              </span>
+            </div>
+          ) : null}
+          
+          {/* 如果没有数据显示暂无数据 */}
+          {!dataPoint.hasData && !dataPoint.isPredicted && dataPoint.balance === null ? (
             <p className="text-sm text-gray-500 dark:text-gray-400">暂无数据</p>
-          )}
+          ) : null}
         </div>
       )
     }
@@ -233,7 +392,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
           <div className="flex items-center gap-4">
             <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg">
-              {activeTab === '30days' ? <Calendar className="w-6 h-6" /> : <BarChart3 className="w-6 h-6" />}
+              {activeTab === '30days' ? <Calendar className="w-6 h-6" /> : activeTab === 'today' ? <Brain className="w-6 h-6" /> : <BarChart3 className="w-6 h-6" />}
             </div>
             <div>
               <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-1">
@@ -249,6 +408,43 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
           
           {/* Tab切换和趋势指示器 */}
           <div className="flex items-center gap-4">
+            {/* 预测信息显示 - 仅在今日标签页显示 */}
+            {activeTab === 'today' && (
+              <div className="flex flex-wrap items-center gap-4 text-sm">
+                {isLoadingPrediction ? (
+                  <div className="flex items-center gap-2 text-gray-500">
+                    <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-base">AI预测计算中...</span>
+                  </div>
+                ) : prediction ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${
+                        predictionStatus.color === 'red' ? 'bg-red-500' :
+                        predictionStatus.color === 'orange' ? 'bg-orange-500' :
+                        'bg-green-500'
+                      }`}></div>
+                      <span className={`font-medium text-base ${
+                        predictionStatus.color === 'red' ? 'text-red-500' :
+                        predictionStatus.color === 'orange' ? 'text-orange-500' :
+                        'text-green-500'
+                      }`}>
+                        {predictionStatus.label}
+                      </span>
+                    </div>
+                    <div className="text-gray-600 dark:text-gray-400 text-base">
+                      预计消耗: <span className="font-mono font-bold text-gray-900 dark:text-white">${prediction.predictedSpent.toFixed(2)}</span>
+                    </div>
+                    {prediction.predictedEndTime && (
+                      <div className="text-red-600 dark:text-red-400 font-semibold text-base">
+                        预计{prediction.predictedEndTime}耗尽余额
+                      </div>
+                    )}
+                  </>
+                ) : null}
+              </div>
+            )}
+            
             {/* Tab切换按钮 */}
             <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
               <button
@@ -364,6 +560,12 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                     <stop offset="100%" stopColor="#8B5CF6" />
                   </linearGradient>
                   
+                  {/* 预测线条渐变 - 橙色到粉色 */}
+                  <linearGradient id="predictedLineGradient" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#F97316" stopOpacity="0.8" />
+                    <stop offset="100%" stopColor="#EC4899" stopOpacity="0.8" />
+                  </linearGradient>
+                  
                   {/* 网格渐变 - 亮色模式 */}
                   <linearGradient id="gridGradient" x1="0" y1="0" x2="1" y2="1">
                     <stop offset="0%" stopColor="#E5E7EB" stopOpacity={0.2}/>
@@ -406,7 +608,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                 
                 <Tooltip content={<CustomTooltip />} />
                 
-                {/* 余额折线图 */}
+                {/* 实际数据折线图 */}
                 <Line
                   type="linear"
                   dataKey="balance"
@@ -418,7 +620,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                     stroke: '#ffffff',
                     strokeWidth: 2,
                     className: 'drop-shadow-lg'
-                  } : false} // 根据条件显示或隐藏数据点
+                  } : false}
                   activeDot={{ 
                     r: 6, 
                     fill: '#3B82F6',
@@ -426,7 +628,24 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                     strokeWidth: 2,
                     className: 'drop-shadow-xl animate-pulse'
                   }}
-                  connectNulls={false} // 确保连接所有有效点
+                  connectNulls={false}
+                />
+                
+                {/* 预测数据虚线 */}
+                <Line
+                  type="linear"
+                  dataKey="predictedBalance"
+                  stroke="url(#predictedLineGradient)"
+                  strokeWidth={3}
+                  strokeDasharray="8 4"
+                  dot={false}
+                  activeDot={{
+                    r: 4,
+                    fill: '#F97316',
+                    stroke: '#ffffff',
+                    strokeWidth: 2,
+                  }}
+                  connectNulls={false}
                 />
                 </LineChart>
               )}
@@ -463,6 +682,16 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                 {(activeTab === 'today' || activeTab === 'yesterday') ? '当前余额' : '日使用量'}
               </span>
             </div>
+            
+            {/* LSTM预测线图例 - 仅在今日标签页且有预测数据时显示 */}
+            {activeTab === 'today' && prediction && chartData.some(d => d.predictedBalance !== null) && (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-3 rounded-sm shadow-sm bg-gradient-to-r from-orange-400 to-pink-500"></div>
+                <span className="font-medium text-gray-700 dark:text-gray-300">
+                  AI预测余额
+                </span>
+              </div>
+            )}
           </div>
           
           {/* 统计摘要 */}
