@@ -620,13 +620,22 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
         
         {/* 图表容器 */}
         <div className="relative">
-          <div className="h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div 
+            className="h-80 w-full focus:outline-none" 
+            style={{ outline: 'none', border: 'none' }} 
+            tabIndex={-1}
+            onFocus={(e) => e.target.blur()}
+          >
+            <ResponsiveContainer 
+              width="100%" 
+              height="100%" 
+              style={{ outline: 'none', border: 'none', boxShadow: 'none' }}
+            >
               {activeTab === '30days' ? (
                 <BarChart
                   data={monthlyChartData}
                   margin={{ top: 10, right: 10, left: -20, bottom: -5 }}
-                  style={{ outline: 'none' }}
+                  style={{ outline: 'none', border: 'none', boxShadow: 'none' }}
                 >
                   <defs>
                     {/* 柱状图渐变 - 与折线图保持一致 */}
@@ -687,7 +696,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                 <LineChart 
                   data={chartData} 
                   margin={{ top: 10, right: 10, left: -20, bottom: -5 }}
-                  style={{ outline: 'none' }}
+                  style={{ outline: 'none', border: 'none', boxShadow: 'none' }}
                 >
                 <defs>
                   {/* 余额线条渐变 */}
