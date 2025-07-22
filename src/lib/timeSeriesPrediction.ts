@@ -21,64 +21,154 @@ export interface PredictionResult {
   confidence: 'high' | 'medium' | 'low'
 }
 
-// 简单的线性回归时序预测
-const simpleTimeSeriesPrediction = (balanceArray: number[], timestamps: number[], predictCount: number) => {
-  console.log('📈 Simple time series prediction with', balanceArray.length, 'points')
+// 指数平滑时序预测（更适合时序数据）
+const exponentialSmoothingPrediction = (balanceArray: number[], predictCount: number) => {
+  console.log('📈 Exponential smoothing prediction with', balanceArray.length, 'points')
   
   if (balanceArray.length < 2) {
     console.log('⚠️ Need at least 2 points for prediction')
     return null
   }
 
-  // 使用最近5个点进行预测（如果有的话）
-  const windowSize = Math.min(5, balanceArray.length)
-  const recentBalances = balanceArray.slice(-windowSize)
-  const recentTimestamps = timestamps.slice(-windowSize)
+  // 使用Holt线性指数平滑（双参数）
+  const alpha = 0.3  // 水平平滑参数
+  const beta = 0.1   // 趋势平滑参数
   
-  console.log('📊 Using', windowSize, 'recent points for prediction')
-  console.log('📈 Recent balances:', recentBalances)
+  console.log('⚙️ Using Holt exponential smoothing: alpha=', alpha, 'beta=', beta)
   
-  // 计算线性回归参数
-  const n = recentBalances.length
-  let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0
+  // 初始化水平和趋势
+  let level = balanceArray[0]
+  let trend = balanceArray.length > 1 ? balanceArray[1] - balanceArray[0] : 0
   
-  for (let i = 0; i < n; i++) {
-    sumX += i
-    sumY += recentBalances[i]
-    sumXY += i * recentBalances[i]
-    sumXX += i * i
+  console.log('🎯 Initial level:', level.toFixed(4), 'trend:', trend.toFixed(6))
+  
+  // 平滑历史数据，学习模式
+  for (let i = 1; i < balanceArray.length; i++) {
+    const prevLevel = level
+    level = alpha * balanceArray[i] + (1 - alpha) * (level + trend)
+    trend = beta * (level - prevLevel) + (1 - beta) * trend
+    
+    if (i <= 3) {
+      console.log(`📊 Step ${i}: value=${balanceArray[i].toFixed(4)}, level=${level.toFixed(4)}, trend=${trend.toFixed(6)}`)
+    }
   }
   
-  // 计算斜率和截距
-  const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX)
-  const intercept = (sumY - slope * sumX) / n
-  
-  console.log('📐 Linear regression: slope=', slope.toFixed(6), 'intercept=', intercept.toFixed(4))
-  
-  // 如果斜率为正（余额增长），使用保守的微小下降
-  const finalSlope = slope > 0 ? -0.001 : slope
-  
-  console.log('📐 Adjusted slope:', finalSlope.toFixed(6))
+  console.log('📐 Final smoothed level:', level.toFixed(4), 'trend:', trend.toFixed(6))
   
   // 生成预测
   const predictions = []
-  const lastBalance = balanceArray[balanceArray.length - 1]
+  let currentLevel = level
+  let currentTrend = trend
   
   for (let i = 1; i <= predictCount; i++) {
-    const predictedBalance = Math.max(0, lastBalance + finalSlope * i * 12) // 每5分钟*12=1小时的变化
-    predictions.push(predictedBalance)
+    const predictedValue = Math.max(0, currentLevel + currentTrend * i)
+    predictions.push(predictedValue)
     
-    if (i <= 3) {
-      console.log(`🔮 Step ${i}: ${lastBalance.toFixed(4)} + ${finalSlope.toFixed(6)} * ${i} * 12 = ${predictedBalance.toFixed(4)}`)
+    if (i <= 5) {
+      console.log(`🔮 Forecast ${i}: ${currentLevel.toFixed(4)} + ${currentTrend.toFixed(6)} * ${i} = ${predictedValue.toFixed(4)}`)
     }
     
-    if (predictedBalance <= 0) {
-      console.log('🛑 Predicted depletion at step', i)
+    if (predictedValue <= 0) {
+      console.log('🛑 Exponential smoothing predicted depletion at step', i)
       break
     }
   }
   
-  console.log('✅ Generated', predictions.length, 'predictions')
+  console.log('✅ Generated', predictions.length, 'exponential smoothing predictions')
+  return predictions
+}
+
+// ARIMA简化版 - 自回归预测
+const autoRegressivePrediction = (balanceArray: number[], predictCount: number) => {
+  console.log('📈 Auto-regressive prediction with', balanceArray.length, 'points')
+  
+  if (balanceArray.length < 4) {
+    console.log('⚠️ Need at least 4 points for AR prediction')
+    return null
+  }
+
+  // 使用AR(2)模型：y(t) = c + φ1*y(t-1) + φ2*y(t-2)
+  const order = Math.min(3, balanceArray.length - 1)
+  console.log('📊 Using AR(' + order + ') model')
+  
+  // 计算差分以获得平稳序列
+  const diffs = []
+  for (let i = 1; i < balanceArray.length; i++) {
+    diffs.push(balanceArray[i] - balanceArray[i-1])
+  }
+  
+  console.log('📉 First differences:', diffs.slice(0, 5), '...')
+  
+  // 简单的最小二乘法估计AR系数
+  const n = diffs.length - order
+  if (n <= 0) {
+    console.log('⚠️ Insufficient data for AR estimation')
+    return null
+  }
+  
+  // 构建设计矩阵和响应向量
+  const X = []
+  const y = []
+  
+  for (let t = order; t < diffs.length; t++) {
+    const row = []
+    for (let lag = 1; lag <= order; lag++) {
+      row.push(diffs[t - lag])
+    }
+    X.push(row)
+    y.push(diffs[t])
+  }
+  
+  // 简化的最小二乘估计（只使用最近的关系）
+  const recentWindow = Math.min(5, X.length)
+  const recentX = X.slice(-recentWindow)
+  const recentY = y.slice(-recentWindow)
+  
+  // 计算加权平均系数
+  const phi = []
+  for (let j = 0; j < order; j++) {
+    let numerator = 0
+    let denominator = 0
+    for (let i = 0; i < recentX.length; i++) {
+      numerator += recentX[i][j] * recentY[i]
+      denominator += recentX[i][j] * recentX[i][j]
+    }
+    phi.push(denominator !== 0 ? numerator / denominator : 0)
+  }
+  
+  console.log('📐 AR coefficients:', phi.map(p => p.toFixed(4)))
+  
+  // 生成预测
+  const predictions = []
+  let lastValues = balanceArray.slice(-order)
+  let lastDiffs = diffs.slice(-order)
+  
+  for (let i = 0; i < predictCount; i++) {
+    // 预测下一个差分值
+    let predictedDiff = 0
+    for (let j = 0; j < order; j++) {
+      predictedDiff += phi[j] * lastDiffs[lastDiffs.length - 1 - j]
+    }
+    
+    // 转换回原始水平
+    const predictedValue = Math.max(0, lastValues[lastValues.length - 1] + predictedDiff)
+    predictions.push(predictedValue)
+    
+    if (i < 5) {
+      console.log(`🔮 AR step ${i + 1}: diff=${predictedDiff.toFixed(6)}, value=${predictedValue.toFixed(4)}`)
+    }
+    
+    // 更新历史序列
+    lastValues = [...lastValues.slice(1), predictedValue]
+    lastDiffs = [...lastDiffs.slice(1), predictedDiff]
+    
+    if (predictedValue <= 0) {
+      console.log('🛑 AR predicted depletion at step', i + 1)
+      break
+    }
+  }
+  
+  console.log('✅ Generated', predictions.length, 'auto-regressive predictions')
   return predictions
 }
 
@@ -155,20 +245,30 @@ export async function predictDailyUsage(
   
   console.log('⏰ Current hour:', currentHour.toFixed(3), 'Predict count:', predictCount)
 
-  // 尝试时序预测
+  // 尝试时序预测 - 使用新的轻量级算法
   let predictedBalances = null
   let confidence: 'high' | 'medium' | 'low' = 'low'
   
   if (balanceArray.length >= 3) {
-    predictedBalances = simpleTimeSeriesPrediction(balanceArray, timestamps, predictCount)
+    // 优先使用指数平滑预测
+    predictedBalances = exponentialSmoothingPrediction(balanceArray, predictCount)
     if (predictedBalances && predictedBalances.length > 0) {
       confidence = balanceArray.length >= 5 ? 'high' : 'medium'
-      console.log('✅ Time series prediction successful')
-    } else {
-      // 备选：移动平均
+      console.log('✅ Exponential smoothing prediction successful')
+    } else if (balanceArray.length >= 4) {
+      // 备选：自回归预测
+      predictedBalances = autoRegressivePrediction(balanceArray, predictCount)
+      if (predictedBalances && predictedBalances.length > 0) {
+        confidence = 'medium'
+        console.log('✅ Auto-regressive prediction used')
+      }
+    }
+    
+    // 最后备选：移动平均
+    if (!predictedBalances || predictedBalances.length === 0) {
       predictedBalances = movingAveragePrediction(balanceArray, predictCount)
-      confidence = 'medium'
-      console.log('✅ Moving average prediction used')
+      confidence = 'low'
+      console.log('✅ Moving average prediction used as fallback')
     }
   }
   
