@@ -68,6 +68,7 @@ const exponentialSmoothingPrediction = (balanceArray: number[], predictCount: nu
       console.log(`🔮 Forecast ${i}: ${currentLevel.toFixed(4)} + ${currentTrend.toFixed(6)} * ${i} = ${predictedValue.toFixed(4)}`)
     }
     
+    // 如果余额为0，添加这个点然后停止
     if (predictedValue <= 0) {
       console.log('🛑 Exponential smoothing predicted depletion at step', i)
       break
@@ -162,6 +163,7 @@ const autoRegressivePrediction = (balanceArray: number[], predictCount: number) 
     lastValues = [...lastValues.slice(1), predictedValue]
     lastDiffs = [...lastDiffs.slice(1), predictedDiff]
     
+    // 如果余额为0，添加这个点然后停止
     if (predictedValue <= 0) {
       console.log('🛑 AR predicted depletion at step', i + 1)
       break
@@ -199,6 +201,7 @@ const movingAveragePrediction = (balanceArray: number[], predictCount: number) =
     currentBalance = Math.max(0, currentBalance + avgChange)
     predictions.push(currentBalance)
     
+    // 如果余额为0，添加这个点然后停止
     if (currentBalance <= 0) {
       console.log('🛑 Moving average predicted depletion at step', i)
       break
@@ -238,12 +241,12 @@ export async function predictDailyUsage(
   const balanceArray = sortedData.map(point => point.balance)
   const timestamps = sortedData.map(point => point.timestamp)
   
-  // 计算需要预测的点数
+  // 计算需要预测的点数 - 预测到一天结束或余额为0
   const currentHour = lastPoint.hourNumber
   const remainingMinutes = (24 - currentHour) * 60
-  const predictCount = Math.min(Math.ceil(remainingMinutes / 5), 50) // 限制预测数量
+  const predictCount = Math.ceil(remainingMinutes / 5) // 移除50的硬性限制
   
-  console.log('⏰ Current hour:', currentHour.toFixed(3), 'Predict count:', predictCount)
+  console.log('⏰ Current hour:', currentHour.toFixed(3), 'Remaining minutes:', remainingMinutes.toFixed(1), 'Predict count:', predictCount)
 
   // 尝试时序预测 - 使用新的轻量级算法
   let predictedBalances = null
@@ -301,7 +304,7 @@ export async function predictDailyUsage(
     })
   }
   
-  // 添加连接点和预测点
+  // 添加连接点和预测点 - 确保预测到一天结束或余额为0
   const minuteInterval = 5
   const hourInterval = minuteInterval / 60
   const connectionHour = currentHour + 0.001
@@ -314,22 +317,33 @@ export async function predictDailyUsage(
     isPredicted: true
   })
   
+  // 添加所有预测点，直到余额为0或到达一天结束
   for (let i = 0; i < predictedBalances.length; i++) {
     const h = currentHour + hourInterval * (i + 1)
-    if (h > 24) break
+    if (h >= 24) {
+      console.log('🕛 Reached end of day at hour', h.toFixed(3))
+      break
+    }
     
     const timestamp = today.getTime() + (h * 60 * 60 * 1000)
+    const predictedBalance = predictedBalances[i]
     
     predictionData.push({
       hourNumber: h,
-      balance: predictedBalances[i],
+      balance: predictedBalance,
       timestamp,
       hour: format(new Date(timestamp), 'HH:mm'),
       isPredicted: true
     })
     
-    if (predictedBalances[i] <= 0) break
+    // 如果预测余额为0或负数，这是最后一个预测点
+    if (predictedBalance <= 0) {
+      console.log('🛑 Reached zero balance at hour', h.toFixed(3), 'balance:', predictedBalance.toFixed(4))
+      break
+    }
   }
+  
+  console.log('📊 Total prediction data points:', predictionData.length, '(actual + predicted)')
   
   // 关键：修复预测消费计算
   const finalBalance = predictedBalances[predictedBalances.length - 1]
