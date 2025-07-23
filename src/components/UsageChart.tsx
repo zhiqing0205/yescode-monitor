@@ -346,11 +346,8 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
   } else if (rawChartData.length > 1 && rawChartData.every(point => point.balance === rawChartData[0].balance)) {
     // 处理多个相同值的实际数据 - 确保线条可见
     console.log('📏 Detected flat actual data line, ensuring visibility')
-    chartData = combinedChartData.map(point => ({
-      ...point,
-      // 保持实际余额不变，但确保数据结构正确
-      balance: point.balance
-    }))
+    // 保持原始数据结构不变
+    chartData = combinedChartData
   }
   
   // 处理预测数据为水平线的情况
@@ -358,11 +355,8 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
     const predictedPoints = chartData.filter(d => d.predictedBalance !== null)
     if (predictedPoints.length > 1 && predictedPoints.every(point => point.predictedBalance === predictedPoints[0].predictedBalance)) {
       console.log('📏 Detected flat prediction line, ensuring visibility')
-      // 预测线为水平线时，确保数据完整性
-      chartData = chartData.map(point => ({
-        ...point,
-        predictedBalance: point.predictedBalance
-      }))
+      // 预测线为水平线时，保持原始数据结构
+      // chartData 已经包含正确的预测数据，无需额外处理
     }
   }
   
