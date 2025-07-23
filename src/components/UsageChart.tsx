@@ -318,8 +318,16 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
   const shouldShowDots = rawChartData.length <= 3 || 
     (rawChartData.length > 0 && rawChartData.every(point => point.balance === rawChartData[0].balance))
   
-  // 如果所有余额相同且只有一个点，为了显示连线，我们需要至少两个点
+  // 检查预测数据是否为水平线
+  const shouldShowPredictionDots = prediction && combinedChartData.some(d => d.predictedBalance !== null) &&
+    combinedChartData.filter(d => d.predictedBalance !== null).every((point, index, arr) => 
+      index === 0 || point.predictedBalance === arr[0].predictedBalance
+    )
+  
+  // 修复水平线显示问题
   let chartData = combinedChartData
+  
+  // 处理单点数据或所有实际数据相同的情况
   if (rawChartData.length === 1 && (!prediction || prediction.predictionData.length <= 1)) {
     // 复制第一个点并稍微调整时间，确保有连线
     const firstPoint = rawChartData[0]
@@ -335,6 +343,27 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
       predictedBalance: null,
       isPredicted: false
     }))
+  } else if (rawChartData.length > 1 && rawChartData.every(point => point.balance === rawChartData[0].balance)) {
+    // 处理多个相同值的实际数据 - 确保线条可见
+    console.log('📏 Detected flat actual data line, ensuring visibility')
+    chartData = combinedChartData.map(point => ({
+      ...point,
+      // 保持实际余额不变，但确保数据结构正确
+      balance: point.balance
+    }))
+  }
+  
+  // 处理预测数据为水平线的情况
+  if (prediction && chartData.some(d => d.predictedBalance !== null)) {
+    const predictedPoints = chartData.filter(d => d.predictedBalance !== null)
+    if (predictedPoints.length > 1 && predictedPoints.every(point => point.predictedBalance === predictedPoints[0].predictedBalance)) {
+      console.log('📏 Detected flat prediction line, ensuring visibility')
+      // 预测线为水平线时，确保数据完整性
+      chartData = chartData.map(point => ({
+        ...point,
+        predictedBalance: point.predictedBalance
+      }))
+    }
   }
   
   // 获取预测状态颜色
@@ -783,7 +812,13 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                   stroke="url(#predictedLineGradient)"
                   strokeWidth={3}
                   strokeDasharray="8 4"
-                  dot={false}
+                  dot={shouldShowPredictionDots ? {
+                    r: 3,
+                    fill: '#F97316',
+                    stroke: '#ffffff',
+                    strokeWidth: 2,
+                    className: 'drop-shadow-lg'
+                  } : false}
                   activeDot={{
                     r: 4,
                     fill: '#F97316',
