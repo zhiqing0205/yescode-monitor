@@ -20,6 +20,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [prediction, setPrediction] = useState<PredictionResult | null>(null)
   const [isLoadingPrediction, setIsLoadingPrediction] = useState(false)
+  const [balanceCountdown, setBalanceCountdown] = useState<string>('')
   
   // 直接使用本地时间，因为环境已经是东八区
   const today = startOfDay(new Date())
@@ -238,6 +239,45 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
       }
     }
   }, [activeTab, actualDataPoints.length, dailyBudget]) // 恢复activeTab依赖
+  
+  // 余额倒计时效果
+  useEffect(() => {
+    if (!prediction || !prediction.predictedEndTime || activeTab !== 'today') {
+      setBalanceCountdown('')
+      return
+    }
+
+    const updateCountdown = () => {
+      const now = new Date()
+      const today = startOfDay(now)
+      
+      // 解析预测结束时间
+      const [hours, minutes] = prediction.predictedEndTime.split(':').map(Number)
+      const endTime = new Date(today.getTime() + hours * 60 * 60 * 1000 + minutes * 60 * 1000)
+      
+      const timeDiff = endTime.getTime() - now.getTime()
+      
+      if (timeDiff <= 0) {
+        setBalanceCountdown('已耗尽')
+        return
+      }
+      
+      const totalSeconds = Math.floor(timeDiff / 1000)
+      const hrs = Math.floor(totalSeconds / 3600)
+      const mins = Math.floor((totalSeconds % 3600) / 60)
+      const secs = totalSeconds % 60
+      
+      setBalanceCountdown(`${hrs}小时${mins}分钟${secs}秒`)
+    }
+
+    // 立即执行一次
+    updateCountdown()
+    
+    // 每秒更新
+    const interval = setInterval(updateCountdown, 1000)
+    
+    return () => clearInterval(interval)
+  }, [prediction, activeTab])
   
   // 处理日期选择
   const handleDateSelect = (date: Date) => {
@@ -663,6 +703,11 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                     <div className="text-gray-600 dark:text-gray-400 text-base">
                       预计消耗: <span className="font-mono font-bold text-gray-900 dark:text-white">${prediction.predictedSpent.toFixed(2)}</span>
                     </div>
+                    {prediction.predictedEndTime && balanceCountdown && (
+                      <div className="text-gray-600 dark:text-gray-400 text-base">
+                        剩余<span className="font-mono font-bold text-gray-900 dark:text-white">${(dailyBudget - prediction.predictedSpent).toFixed(2)}</span>将在<span className="font-mono font-bold text-red-600 dark:text-red-400">{balanceCountdown}</span>后消失
+                      </div>
+                    )}
                     {prediction.predictedEndTime && (
                       <div className="text-red-600 dark:text-red-400 font-semibold text-base">
                         预计{prediction.predictedEndTime}耗尽余额
