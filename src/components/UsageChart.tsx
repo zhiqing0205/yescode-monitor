@@ -314,51 +314,132 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
     }))
   }, [activeTab, prediction, rawChartData])
   
-  // 检查是否需要显示数据点（当数据点较少或余额相同时）
-  const shouldShowDots = rawChartData.length <= 3 || 
-    (rawChartData.length > 0 && rawChartData.every(point => point.balance === rawChartData[0].balance))
-  
-  // 检查预测数据是否为水平线
-  const shouldShowPredictionDots = prediction && combinedChartData.some(d => d.predictedBalance !== null) &&
-    combinedChartData.filter(d => d.predictedBalance !== null).every((point, index, arr) => 
-      index === 0 || point.predictedBalance === arr[0].predictedBalance
-    )
-  
-  // 修复水平线显示问题
-  let chartData = combinedChartData
-  
-  // 处理单点数据或所有实际数据相同的情况
-  if (rawChartData.length === 1 && (!prediction || prediction.predictionData.length <= 1)) {
-    // 复制第一个点并稍微调整时间，确保有连线
-    const firstPoint = rawChartData[0]
-    const secondPoint = {
-      ...firstPoint,
-      hourNumber: firstPoint.hourNumber + 0.01, // 稍微增加时间
-      hour: firstPoint.hour, // 保持显示时间相同
-      predictedBalance: null,
-      isPredicted: false
+  // 检查是否需要显示数据点（更全面的检测逻辑）
+  const shouldShowDots = useMemo(() => {
+    // 如果数据点很少，总是显示点
+    if (rawChartData.length <= 3) return true
+    
+    // 如果所有实际数据余额相同（水平线），显示点
+    if (rawChartData.length > 0 && rawChartData.every(point => point.balance === rawChartData[0].balance)) {
+      return true
     }
-    chartData = [firstPoint, secondPoint].map(point => ({
-      ...point,
-      predictedBalance: null,
-      isPredicted: false
-    }))
-  } else if (rawChartData.length > 1 && rawChartData.every(point => point.balance === rawChartData[0].balance)) {
-    // 处理多个相同值的实际数据 - 确保线条可见
-    console.log('📏 Detected flat actual data line, ensuring visibility')
-    // 保持原始数据结构不变
-    chartData = combinedChartData
-  }
+    
+    // 如果数据跨度很小（接近水平线），显示点
+    if (rawChartData.length > 1) {
+      const balances = rawChartData.map(p => p.balance).filter(b => b !== null) as number[]
+      if (balances.length > 0) {
+        const min = Math.min(...balances)
+        const max = Math.max(...balances)
+        const range = max - min
+        // 如果变化范围很小（小于日预算的1%），认为是近似水平线
+        if (range < dailyBudget * 0.01) {
+          return true
+        }
+      }
+    }
+    
+    return false
+  }, [rawChartData, dailyBudget])
+  
+  // 检查预测数据是否需要显示点
+  const shouldShowPredictionDots = useMemo(() => {
+    if (!prediction || !combinedChartData.some(d => d.predictedBalance !== null)) {
+      return false
+    }
+    
+    const predictedPoints = combinedChartData.filter(d => d.predictedBalance !== null)
+    
+    // 预测点很少时显示
+    if (predictedPoints.length <= 3) return true
+    
+    // 所有预测值相同（水平线）
+    if (predictedPoints.length > 1 && predictedPoints.every(point => point.predictedBalance === predictedPoints[0].predictedBalance)) {
+      return true
+    }
+    
+    // 预测值变化范围很小
+    if (predictedPoints.length > 1) {
+      const values = predictedPoints.map(p => p.predictedBalance).filter(v => v !== null) as number[]
+      if (values.length > 0) {
+        const min = Math.min(...values)
+        const max = Math.max(...values)
+        const range = max - min
+        if (range < dailyBudget * 0.01) {
+          return true
+        }
+      }
+    }
+    
+    return false
+  }, [prediction, combinedChartData, dailyBudget])
+  
+  // 修复水平线显示问题和连接问题
+  const chartData = useMemo(() => {
+    let processedData = [...combinedChartData]
+    
+    // 处理单点数据情况
+    if (rawChartData.length === 1 && (!prediction || prediction.predictionData.filter(p => p.isPredicted).length <= 1)) {
+      console.log('🔧 处理单点数据，确保连线显示')
+      const firstPoint = rawChartData[0]
+      const duplicatePoint = {
+        ...firstPoint,
+        hourNumber: firstPoint.hourNumber + 0.01, // 稍微增加时间
+        hour: firstPoint.hour, // 保持显示时间相同
+        predictedBalance: null,
+        isPredicted: false
+      }
+      processedData = [
+        { ...firstPoint, predictedBalance: null, isPredicted: false },
+        duplicatePoint
+      ]
+    }
+    
+    // 处理多点相同值的情况 - 确保数据点有适当的间隔
+    else if (rawChartData.length > 1 && rawChartData.every(point => point.balance === rawChartData[0].balance)) {
+      console.log('🔧 处理水平实际数据线')
+      // 保持原始数据，但确保时间间隔正确
+      processedData = combinedChartData.map((point, index) => ({
+        ...point,
+        // 确保时间间隔不为0，避免重叠导致不显示
+        hourNumber: point.hourNumber + (index * 0.001)
+      }))
+    }
+    
+    // 处理预测数据为水平线的情况
+    if (prediction && processedData.some(d => d.predictedBalance !== null)) {
+      const predictedPoints = processedData.filter(d => d.predictedBalance !== null)
+      if (predictedPoints.length > 1 && predictedPoints.every(point => point.predictedBalance === predictedPoints[0].predictedBalance)) {
+        console.log('🔧 处理水平预测数据线')
+        // 确保预测点也有适当间隔
+        let predictedIndex = 0
+        processedData = processedData.map(point => {
+          if (point.predictedBalance !== null) {
+            return {
+              ...point,
+              hourNumber: point.hourNumber + (predictedIndex++ * 0.001)
+            }
+          }
+          return point
+        })
+      }
+    }
+    
+    // 按时间排序，确保线条正确连接
+    return processedData.sort((a, b) => a.hourNumber - b.hourNumber)
+  }, [combinedChartData, rawChartData, prediction])
+  
+  // 移除旧的处理逻辑
+  // 处理单点数据或所有实际数据相同的情况
+  // if (rawChartData.length === 1 && (!prediction || prediction.predictionData.length <= 1)) {
+  //   ...
+  // } else if (rawChartData.length > 1 && rawChartData.every(point => point.balance === rawChartData[0].balance)) {
+  //   ...
+  // }
   
   // 处理预测数据为水平线的情况
-  if (prediction && chartData.some(d => d.predictedBalance !== null)) {
-    const predictedPoints = chartData.filter(d => d.predictedBalance !== null)
-    if (predictedPoints.length > 1 && predictedPoints.every(point => point.predictedBalance === predictedPoints[0].predictedBalance)) {
-      console.log('📏 Detected flat prediction line, ensuring visibility')
-      // 预测线为水平线时，保持原始数据结构
-      // chartData 已经包含正确的预测数据，无需额外处理
-    }
-  }
+  // if (prediction && chartData.some(d => d.predictedBalance !== null)) {
+  //   ...
+  // }
   
   // 获取预测状态颜色
   const getPredictionStatus = () => {
@@ -653,6 +734,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
               width="100%" 
               height="100%" 
               style={{ outline: 'none', border: 'none', boxShadow: 'none' }}
+              key={`chart-${activeTab}-${selectedDate?.getTime() || 'none'}`}
             >
               {activeTab === '30days' ? (
                 <BarChart
@@ -720,6 +802,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                   data={chartData} 
                   margin={{ top: 10, right: 10, left: -20, bottom: -5 }}
                   style={{ outline: 'none', border: 'none', boxShadow: 'none' }}
+                  key={`line-chart-${rawChartData.length}-${prediction?.predictionData.length || 0}`}
                 >
                 <defs>
                   {/* 余额线条渐变 */}
@@ -797,6 +880,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                     className: 'drop-shadow-xl animate-pulse'
                   }}
                   connectNulls={false}
+                  isAnimationActive={false}
                 />
                 
                 {/* 预测数据虚线 */}
@@ -820,6 +904,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                     strokeWidth: 2,
                   }}
                   connectNulls={false}
+                  isAnimationActive={false}
                 />
                 </LineChart>
               )}
