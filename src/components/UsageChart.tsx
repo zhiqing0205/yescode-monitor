@@ -628,9 +628,13 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                     <div className="text-gray-600 dark:text-gray-400 text-base">
                       预计消耗: <span className="font-mono font-bold text-gray-900 dark:text-white">${prediction.predictedSpent.toFixed(2)}</span>
                     </div>
-                    {prediction.predictedEndTime && (
+                    {prediction.predictedEndTime ? (
                       <div className="text-red-600 dark:text-red-400 font-semibold text-base">
                         预计{prediction.predictedEndTime}耗尽余额
+                      </div>
+                    ) : (
+                      <div className="text-green-600 dark:text-green-400 font-semibold text-base">
+                        ${(dailyBudget - prediction.predictedSpent).toFixed(2)}将会在零点失效
                       </div>
                     )}
                   </>
