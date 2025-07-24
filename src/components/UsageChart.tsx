@@ -319,25 +319,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
     // 如果数据点很少，总是显示点
     if (rawChartData.length <= 3) return true
     
-    // 如果所有实际数据余额相同（水平线），显示点
-    if (rawChartData.length > 0 && rawChartData.every(point => point.balance === rawChartData[0].balance)) {
-      return true
-    }
-    
-    // 如果数据跨度很小（接近水平线），显示点
-    if (rawChartData.length > 1) {
-      const balances = rawChartData.map(p => p.balance).filter(b => b !== null) as number[]
-      if (balances.length > 0) {
-        const min = Math.min(...balances)
-        const max = Math.max(...balances)
-        const range = max - min
-        // 如果变化范围很小（小于日预算的1%），认为是近似水平线
-        if (range < dailyBudget * 0.01) {
-          return true
-        }
-      }
-    }
-    
+    // 超过3个点就不显示点，即便是水平线也是如此
     return false
   }, [rawChartData, dailyBudget])
   
@@ -352,24 +334,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
     // 预测点很少时显示
     if (predictedPoints.length <= 3) return true
     
-    // 所有预测值相同（水平线）
-    if (predictedPoints.length > 1 && predictedPoints.every(point => point.predictedBalance === predictedPoints[0].predictedBalance)) {
-      return true
-    }
-    
-    // 预测值变化范围很小
-    if (predictedPoints.length > 1) {
-      const values = predictedPoints.map(p => p.predictedBalance).filter(v => v !== null) as number[]
-      if (values.length > 0) {
-        const min = Math.min(...values)
-        const max = Math.max(...values)
-        const range = max - min
-        if (range < dailyBudget * 0.01) {
-          return true
-        }
-      }
-    }
-    
+    // 超过3个点就不显示点，即便是水平线也是如此
     return false
   }, [prediction, combinedChartData, dailyBudget])
   
