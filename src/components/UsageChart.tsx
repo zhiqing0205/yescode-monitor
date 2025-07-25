@@ -338,50 +338,26 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
     return false
   }, [prediction, combinedChartData, dailyBudget])
   
-  // 修复水平线显示问题和连接问题
+  // 修复水平线显示问题 - 为相同值的数据点添加微小变化
   const chartData = useMemo(() => {
     let processedData = [...combinedChartData]
     
-    // 处理单点数据情况
-    if (rawChartData.length === 1 && (!prediction || prediction.predictionData.filter(p => p.isPredicted).length <= 1)) {
-      console.log('🔧 处理单点数据，确保连线显示')
-      const firstPoint = rawChartData[0]
-      const duplicatePoint = {
-        ...firstPoint,
-        hourNumber: firstPoint.hourNumber + 0.01, // 稍微增加时间
-        hour: firstPoint.hour, // 保持显示时间相同
-        predictedBalance: null,
-        isPredicted: false
-      }
-      processedData = [
-        { ...firstPoint, predictedBalance: null, isPredicted: false },
-        duplicatePoint
-      ]
-    }
-    
-    // 处理多点相同值的情况 - 确保数据点有适当的间隔
-    else if (rawChartData.length > 1 && rawChartData.every(point => point.balance === rawChartData[0].balance)) {
-      console.log('🔧 处理水平实际数据线')
-      // 保持原始数据，但确保时间间隔正确
-      processedData = combinedChartData.map((point, index) => ({
-        ...point,
-        // 确保时间间隔不为0，避免重叠导致不显示
-        hourNumber: point.hourNumber + (index * 0.001)
-      }))
-    }
-    
-    // 处理预测数据为水平线的情况
-    if (prediction && processedData.some(d => d.predictedBalance !== null)) {
-      const predictedPoints = processedData.filter(d => d.predictedBalance !== null)
-      if (predictedPoints.length > 1 && predictedPoints.every(point => point.predictedBalance === predictedPoints[0].predictedBalance)) {
-        console.log('🔧 处理水平预测数据线')
-        // 确保预测点也有适当间隔
-        let predictedIndex = 0
-        processedData = processedData.map(point => {
-          if (point.predictedBalance !== null) {
+    // 为相同值的实际数据添加微小变化以显示线条
+    const actualPoints = processedData.filter(d => d.balance !== null && !d.isPredicted)
+    if (actualPoints.length > 1) {
+      const firstBalance = actualPoints[0].balance
+      const allSame = actualPoints.every(point => point.balance === firstBalance)
+      
+      if (allSame) {
+        console.log('🔧 检测到水平实际数据线，添加微小变化')
+        // 为水平线的数据点添加非常小的递增变化
+        processedData = processedData.map((point, index) => {
+          if (point.balance !== null && !point.isPredicted) {
+            // 添加微小的变化量（0.001），足够小不会影响显示，但足够大让Recharts识别
+            const actualIndex = actualPoints.findIndex(ap => ap.hourNumber === point.hourNumber)
             return {
               ...point,
-              hourNumber: point.hourNumber + (predictedIndex++ * 0.001)
+              balance: point.balance + (actualIndex * 0.001)
             }
           }
           return point
@@ -389,22 +365,58 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
       }
     }
     
-    // 按时间排序，确保线条正确连接
-    return processedData.sort((a, b) => a.hourNumber - b.hourNumber)
-  }, [combinedChartData, rawChartData, prediction])
-  
-  // 移除旧的处理逻辑
-  // 处理单点数据或所有实际数据相同的情况
-  // if (rawChartData.length === 1 && (!prediction || prediction.predictionData.length <= 1)) {
-  //   ...
-  // } else if (rawChartData.length > 1 && rawChartData.every(point => point.balance === rawChartData[0].balance)) {
-  //   ...
-  // }
-  
-  // 处理预测数据为水平线的情况
-  // if (prediction && chartData.some(d => d.predictedBalance !== null)) {
-  //   ...
-  // }
+    // 为相同值的预测数据添加微小变化以显示线条
+    const predictedPoints = processedData.filter(d => d.predictedBalance !== null && d.isPredicted)
+    if (predictedPoints.length > 1) {
+      const firstPredictedBalance = predictedPoints[0].predictedBalance
+      const allPredictedSame = predictedPoints.every(point => point.predictedBalance === firstPredictedBalance)
+      
+      if (allPredictedSame) {
+        console.log('🔧 检测到水平预测数据线，添加微小变化')
+        // 为水平线的预测数据点添加非常小的递增变化
+        processedData = processedData.map((point, index) => {
+          if (point.predictedBalance !== null && point.isPredicted) {
+            const predictedIndex = predictedPoints.findIndex(pp => pp.hourNumber === point.hourNumber)
+            return {
+              ...point,
+              predictedBalance: point.predictedBalance + (predictedIndex * 0.001)
+            }
+          }
+          return point
+        })
+      }
+    }
+    
+    // 确保单点数据也能显示（复制点）
+    if (actualPoints.length === 1) {
+      const point = actualPoints[0]
+      const duplicatePoint = {
+        ...point,
+        hourNumber: point.hourNumber + 0.01,
+        balance: point.balance + 0.001 // 添加微小变化
+      }
+      processedData.push(duplicatePoint)
+      console.log('🔧 为单点实际数据添加复制点')
+    }
+    
+    if (predictedPoints.length === 1) {
+      const point = predictedPoints[0]
+      const duplicatePoint = {
+        ...point,
+        hourNumber: point.hourNumber + 0.01,
+        predictedBalance: point.predictedBalance + 0.001 // 添加微小变化
+      }
+      processedData.push(duplicatePoint)
+      console.log('🔧 为单点预测数据添加复制点')
+    }
+    
+    const sortedData = processedData.sort((a, b) => a.hourNumber - b.hourNumber)
+    console.log('📊 处理后的图表数据:', sortedData.length, 'points')
+    console.log('📊 实际数据样本:', sortedData.filter(d => d.balance !== null).slice(0, 3))
+    console.log('📊 预测数据样本:', sortedData.filter(d => d.predictedBalance !== null).slice(0, 3))
+    
+    return sortedData
+  }, [combinedChartData])
   
   // 获取预测状态颜色
   const getPredictionStatus = () => {
