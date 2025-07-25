@@ -393,7 +393,9 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
       const duplicatePoint = {
         ...point,
         hourNumber: point.hourNumber + 0.01,
-        balance: (point.balance || 0) + 0.001 // 添加微小变化，处理null情况
+        balance: (point.balance || 0) + 0.001, // 添加微小变化，处理null情况
+        predictedBalance: null, // 确保类型一致
+        isPredicted: false
       }
       processedData.push(duplicatePoint)
       console.log('🔧 为单点实际数据添加复制点')
@@ -404,7 +406,9 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
       const duplicatePoint = {
         ...point,
         hourNumber: point.hourNumber + 0.01,
-        predictedBalance: (point.predictedBalance || 0) + 0.001 // 添加微小变化，处理null情况
+        balance: null, // 确保类型一致
+        predictedBalance: (point.predictedBalance || 0) + 0.001, // 添加微小变化，处理null情况
+        isPredicted: true
       }
       processedData.push(duplicatePoint)
       console.log('🔧 为单点预测数据添加复制点')
