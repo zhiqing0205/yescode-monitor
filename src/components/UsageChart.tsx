@@ -338,88 +338,39 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
     return false
   }, [prediction, combinedChartData, dailyBudget])
   
-  // 修复水平线显示问题 - 为相同值的数据点添加微小变化
+  // 直接使用组合数据，不进行任何数据修改
   const chartData = useMemo(() => {
-    let processedData = [...combinedChartData]
+    const data = combinedChartData
     
-    // 为相同值的实际数据添加微小变化以显示线条
-    const actualPoints = processedData.filter(d => d.balance !== null && !d.isPredicted)
+    // 调试水平线情况
+    const actualPoints = data.filter(d => d.balance !== null)
+    const predictedPoints = data.filter(d => d.predictedBalance !== null)
+    
     if (actualPoints.length > 1) {
       const firstBalance = actualPoints[0].balance
-      const allSame = actualPoints.every(point => point.balance === firstBalance)
-      
-      if (allSame) {
-        console.log('🔧 检测到水平实际数据线，添加微小变化')
-        // 为水平线的数据点添加非常小的递增变化
-        processedData = processedData.map((point, index) => {
-          if (point.balance !== null && !point.isPredicted) {
-            // 添加微小的变化量（0.001），足够小不会影响显示，但足够大让Recharts识别
-            const actualIndex = actualPoints.findIndex(ap => ap.hourNumber === point.hourNumber)
-            return {
-              ...point,
-              balance: (point.balance || 0) + (actualIndex * 0.001)
-            }
-          }
-          return point
-        })
+      const isHorizontal = actualPoints.every(point => point.balance === firstBalance)
+      if (isHorizontal) {
+        console.log('🔍 检测到水平实际数据线:')
+        console.log('   数据点数量:', actualPoints.length)
+        console.log('   余额值:', firstBalance)
+        console.log('   时间范围:', actualPoints[0].hourNumber, 'to', actualPoints[actualPoints.length - 1].hourNumber)
+        console.log('   样本数据:', actualPoints.slice(0, 3))
       }
     }
     
-    // 为相同值的预测数据添加微小变化以显示线条
-    const predictedPoints = processedData.filter(d => d.predictedBalance !== null && d.isPredicted)
     if (predictedPoints.length > 1) {
-      const firstPredictedBalance = predictedPoints[0].predictedBalance
-      const allPredictedSame = predictedPoints.every(point => point.predictedBalance === firstPredictedBalance)
-      
-      if (allPredictedSame) {
-        console.log('🔧 检测到水平预测数据线，添加微小变化')
-        // 为水平线的预测数据点添加非常小的递增变化
-        processedData = processedData.map((point, index) => {
-          if (point.predictedBalance !== null && point.isPredicted) {
-            const predictedIndex = predictedPoints.findIndex(pp => pp.hourNumber === point.hourNumber)
-            return {
-              ...point,
-              predictedBalance: (point.predictedBalance || 0) + (predictedIndex * 0.001)
-            }
-          }
-          return point
-        })
+      const firstPredicted = predictedPoints[0].predictedBalance
+      const isHorizontal = predictedPoints.every(point => point.predictedBalance === firstPredicted)
+      if (isHorizontal) {
+        console.log('🔍 检测到水平预测数据线:')
+        console.log('   数据点数量:', predictedPoints.length)
+        console.log('   预测值:', firstPredicted)
+        console.log('   时间范围:', predictedPoints[0].hourNumber, 'to', predictedPoints[predictedPoints.length - 1].hourNumber)
+        console.log('   样本数据:', predictedPoints.slice(0, 3))
       }
     }
     
-    // 确保单点数据也能显示（复制点）
-    if (actualPoints.length === 1) {
-      const point = actualPoints[0]
-      const duplicatePoint = {
-        ...point,
-        hourNumber: point.hourNumber + 0.01,
-        balance: (point.balance || 0) + 0.001, // 添加微小变化，处理null情况
-        predictedBalance: null, // 确保类型一致
-        isPredicted: false
-      }
-      processedData.push(duplicatePoint)
-      console.log('🔧 为单点实际数据添加复制点')
-    }
-    
-    if (predictedPoints.length === 1) {
-      const point = predictedPoints[0]
-      const duplicatePoint = {
-        ...point,
-        hourNumber: point.hourNumber + 0.01,
-        balance: null, // 确保类型一致
-        predictedBalance: (point.predictedBalance || 0) + 0.001, // 添加微小变化，处理null情况
-        isPredicted: true
-      }
-      processedData.push(duplicatePoint)
-      console.log('🔧 为单点预测数据添加复制点')
-    }
-    
-    const sortedData = processedData.sort((a, b) => a.hourNumber - b.hourNumber)
-    console.log('📊 处理后的图表数据:', sortedData.length, 'points')
-    console.log('📊 实际数据样本:', sortedData.filter(d => d.balance !== null).slice(0, 3))
-    console.log('📊 预测数据样本:', sortedData.filter(d => d.predictedBalance !== null).slice(0, 3))
-    
-    return sortedData
+    return data
   }, [combinedChartData])
   
   // 获取预测状态颜色
@@ -500,7 +451,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
               <div className="flex items-center gap-2">
                 <div 
                   className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: payload.find((p: any) => p.dataKey === 'balance')?.color || '#3B82F6' }}
+                  style={{ backgroundColor: payload.find((p: any) => p.dataKey === 'balance')?.color || '#2563EB' }}
                 />
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   当前余额
@@ -519,7 +470,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                 <svg width="12" height="3" className="opacity-80">
                   <line 
                     x1="0" y1="1.5" x2="12" y2="1.5" 
-                    stroke="#F97316" 
+                    stroke="#EA580C" 
                     strokeWidth="2" 
                     strokeDasharray="3 2"
                   />
@@ -848,18 +799,18 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                 <Line
                   type="linear"
                   dataKey="balance"
-                  stroke="url(#balanceLineGradient)"
+                  stroke="#2563EB"
                   strokeWidth={3}
                   dot={shouldShowDots ? {
                     r: 4,
-                    fill: '#3B82F6',
+                    fill: '#2563EB',
                     stroke: '#ffffff',
                     strokeWidth: 2,
                     className: 'drop-shadow-lg'
                   } : false}
                   activeDot={{ 
                     r: 6, 
-                    fill: '#3B82F6',
+                    fill: '#2563EB',
                     stroke: '#ffffff',
                     strokeWidth: 2,
                     className: 'drop-shadow-xl animate-pulse'
@@ -872,19 +823,19 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                 <Line
                   type="linear"
                   dataKey="predictedBalance"
-                  stroke="url(#predictedLineGradient)"
+                  stroke="#EA580C"
                   strokeWidth={3}
                   strokeDasharray="8 4"
                   dot={shouldShowPredictionDots ? {
                     r: 3,
-                    fill: '#F97316',
+                    fill: '#EA580C',
                     stroke: '#ffffff',
                     strokeWidth: 2,
                     className: 'drop-shadow-lg'
                   } : false}
                   activeDot={{
                     r: 4,
-                    fill: '#F97316',
+                    fill: '#EA580C',
                     stroke: '#ffffff',
                     strokeWidth: 2,
                   }}
@@ -924,8 +875,8 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
             <div className="flex items-center gap-2">
               <div className={`w-4 h-3 rounded-sm shadow-sm ${
                 activeTab === '30days'
-                  ? 'bg-gradient-to-b from-blue-500 to-purple-600' 
-                  : 'bg-gradient-to-r from-blue-400 to-purple-600'
+                  ? 'bg-blue-600' 
+                  : 'bg-blue-600'
               }`}></div>
               <span className="font-medium text-gray-700 dark:text-gray-300">
                 {(activeTab === 'today' || activeTab === 'yesterday') ? '当前余额' : '日使用量'}
@@ -935,7 +886,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
             {/* LSTM预测线图例 - 仅在今日标签页且有预测数据时显示 */}
             {activeTab === 'today' && prediction && chartData.some(d => d.predictedBalance !== null) && (
               <div className="flex items-center gap-2">
-                <div className="w-4 h-3 rounded-sm shadow-sm bg-gradient-to-r from-orange-400 to-pink-500"></div>
+                <div className="w-4 h-3 rounded-sm shadow-sm bg-orange-600"></div>
                 <span className="font-medium text-gray-700 dark:text-gray-300">
                   AI预测余额
                 </span>
