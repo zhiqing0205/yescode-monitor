@@ -694,7 +694,8 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
               {activeTab === '30days' ? (
                 <BarChart
                   data={monthlyChartData}
-                  margin={{ top: 10, right: 10, left: -20, bottom: -5 }}
+                  margin={{ top: 10, right: 20, left: -10, bottom: -5 }}
+                  barCategoryGap={0}
                   style={{ outline: 'none', border: 'none', boxShadow: 'none' }}
                   onClick={(data) => {
                     if (data && data.activeLabel) {
@@ -750,13 +751,15 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                     tickLine={false}
                   />
                   
-                  <Tooltip content={<MonthlyTooltip />} />
+                  <Tooltip 
+                    content={<MonthlyTooltip />} 
+                    cursor={false}
+                  />
                   
                   <Bar
                     dataKey="usage"
                     fill="url(#barGradient)"
-                    radius={[4, 4, 0, 0]}
-                    maxBarSize={40}
+                    radius={[6, 6, 0, 0]}
                     style={{ cursor: 'pointer' }}
                   />
                   
@@ -764,8 +767,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                   <Bar
                     dataKey={() => monthlyChartData.reduce((max, d) => Math.max(max, d.usage), 0)}
                     fill="transparent"
-                    radius={[4, 4, 0, 0]}
-                    maxBarSize={40}
+                    radius={[6, 6, 0, 0]}
                     onClick={(data, index) => handleBarClick(data, index)}
                     style={{ cursor: 'pointer' }}
                   />
