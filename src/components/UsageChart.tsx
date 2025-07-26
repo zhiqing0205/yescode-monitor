@@ -246,10 +246,14 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
     setPrediction(null) // 清除预测结果，因为只有今日才显示预测
   }
   
-  // 处理30天柱状图点击
-  const handleBarClick = (data: any) => {
+  // 处理30天柱状图点击 - 优化为整个区域可点击
+  const handleBarClick = (data: any, index: number) => {
     if (data && data.date) {
       const clickedDate = new Date(data.date)
+      handleDateSelect(clickedDate)
+    } else if (monthlyChartData && monthlyChartData[index]) {
+      // 如果直接点击没有数据，通过索引获取
+      const clickedDate = new Date(monthlyChartData[index].date)
       handleDateSelect(clickedDate)
     }
   }
@@ -545,12 +549,13 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
       
       <div className="relative p-4 sm:p-6">
         {/* 头部区域 */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+        <div className="space-y-4 mb-4">
+          {/* 标题和图标 */}
           <div className="flex items-center gap-4">
             <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg">
               {activeTab === '30days' ? <Calendar className="w-6 h-6" /> : activeTab === 'today' ? <Brain className="w-6 h-6" /> : <BarChart3 className="w-6 h-6" />}
             </div>
-            <div>
+            <div className="flex-1">
               <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-1">
                 {activeTab === 'today' ? '当日余额变化趋势' : 
                  activeTab === 'yesterday' ? '昨日余额变化趋势' : 
@@ -565,95 +570,109 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
               </p>
             </div>
           </div>
-          
-          {/* Tab切换和趋势指示器 */}
-          <div className="flex items-center gap-4">
-            {/* 预测信息显示 - 仅在今日标签页显示 */}
-            {activeTab === 'today' && (
-              <div className="flex flex-wrap items-center gap-4 text-sm">
-                {isLoadingPrediction ? (
-                  <div className="flex items-center gap-2 text-gray-500">
-                    <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-                    <span className="text-base">AI预测计算中...</span>
-                  </div>
-                ) : prediction ? (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${
-                        predictionStatus.color === 'red' ? 'bg-red-500' :
-                        predictionStatus.color === 'orange' ? 'bg-orange-500' :
-                        'bg-green-500'
-                      }`}></div>
-                      <span className={`font-medium text-base ${
-                        predictionStatus.color === 'red' ? 'text-red-500' :
-                        predictionStatus.color === 'orange' ? 'text-orange-500' :
-                        'text-green-500'
-                      }`}>
-                        {predictionStatus.label}
-                      </span>
-                    </div>
-                    <div className="text-gray-600 dark:text-gray-400 text-base">
-                      预计消耗: <span className="font-mono font-bold text-gray-900 dark:text-white">${prediction.predictedSpent.toFixed(2)}</span>
-                    </div>
-                    {prediction.predictedEndTime ? (
-                      <div className="text-red-600 dark:text-red-400 font-semibold text-base">
-                        预计{prediction.predictedEndTime}耗尽余额
-                      </div>
-                    ) : (
-                      <div className="text-green-600 dark:text-green-400 font-semibold text-base">
-                        ${(dailyBudget - prediction.predictedSpent).toFixed(2)}将会在零点失效
-                      </div>
-                    )}
-                  </>
-                ) : null}
+
+          {/* 控制按钮和预测信息区域 */}
+          <div className="flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
+            {/* 左侧：Tab切换和日历 */}
+            <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+              {/* Tab切换按钮和日历选择器 */}
+              <div className="flex items-center gap-3">
+                <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+                  <button
+                    onClick={() => setActiveTab('today')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 ${
+                      activeTab === 'today'
+                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <Clock className="w-4 h-4" />
+                    今日
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('yesterday')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 ${
+                      activeTab === 'yesterday'
+                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <Clock className="w-4 h-4" />
+                    昨日
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('30days')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 ${
+                      activeTab === '30days'
+                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <Calendar className="w-4 h-4" />
+                    30天
+                  </button>
+                </div>
+                
+                {/* 日历选择器 */}
+                <DatePicker 
+                  availableDates={availableDates}
+                  onDateSelect={handleDateSelect}
+                  selectedDate={selectedDate || undefined}
+                />
               </div>
-            )}
-            
-            {/* 日历按钮和Tab切换按钮 */}
-            <div className="flex items-center gap-3">
-              {/* 日历选择器 */}
-              <DatePicker 
-                availableDates={availableDates}
-                onDateSelect={handleDateSelect}
-                selectedDate={selectedDate || undefined}
-              />
+            </div>
+
+            {/* 右侧：预测信息 */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* 30天模式提示 */}
+              {activeTab === '30days' && (
+                <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span className="hidden sm:inline">点击柱子查看当天趋势</span>
+                  <span className="sm:hidden">点击柱子查看当天</span>
+                </div>
+              )}
               
-              {/* Tab切换按钮 */}
-              <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-              <button
-                onClick={() => setActiveTab('today')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 ${
-                  activeTab === 'today'
-                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                <Clock className="w-4 h-4" />
-                今日
-              </button>
-              <button
-                onClick={() => setActiveTab('yesterday')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 ${
-                  activeTab === 'yesterday'
-                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                <Clock className="w-4 h-4" />
-                昨日
-              </button>
-              <button
-                onClick={() => setActiveTab('30days')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 ${
-                  activeTab === '30days'
-                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                <Calendar className="w-4 h-4" />
-                30天
-              </button>
-              </div>
+              {/* 预测信息 - 仅在今日标签页显示 */}
+              {activeTab === 'today' && (
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                  {isLoadingPrediction ? (
+                    <div className="flex items-center gap-2 text-gray-500">
+                      <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-sm">AI预测计算中...</span>
+                    </div>
+                  ) : prediction ? (
+                    <div className="flex flex-wrap items-center gap-3 text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${
+                          predictionStatus.color === 'red' ? 'bg-red-500' :
+                          predictionStatus.color === 'orange' ? 'bg-orange-500' :
+                          'bg-green-500'
+                        }`}></div>
+                        <span className={`font-medium ${
+                          predictionStatus.color === 'red' ? 'text-red-500' :
+                          predictionStatus.color === 'orange' ? 'text-orange-500' :
+                          'text-green-500'
+                        }`}>
+                          {predictionStatus.label}
+                        </span>
+                      </div>
+                      <div className="text-gray-600 dark:text-gray-400">
+                        预计消耗: <span className="font-mono font-bold text-gray-900 dark:text-white">${prediction.predictedSpent.toFixed(2)}</span>
+                      </div>
+                      {prediction.predictedEndTime ? (
+                        <div className="text-red-600 dark:text-red-400 font-semibold">
+                          预计{prediction.predictedEndTime}耗尽余额
+                        </div>
+                      ) : (
+                        <div className="text-green-600 dark:text-green-400 font-semibold">
+                          ${(dailyBudget - prediction.predictedSpent).toFixed(2)}将会在零点失效
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -677,6 +696,15 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                   data={monthlyChartData}
                   margin={{ top: 10, right: 10, left: -20, bottom: -5 }}
                   style={{ outline: 'none', border: 'none', boxShadow: 'none' }}
+                  onClick={(data) => {
+                    if (data && data.activeLabel) {
+                      // 通过activeLabel找到对应的数据
+                      const clickedData = monthlyChartData.find(d => d.dateDisplay === data.activeLabel)
+                      if (clickedData) {
+                        handleBarClick(clickedData, monthlyChartData.indexOf(clickedData))
+                      }
+                    }
+                  }}
                 >
                   <defs>
                     {/* 柱状图渐变 - 与折线图保持一致 */}
@@ -729,7 +757,16 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                     fill="url(#barGradient)"
                     radius={[4, 4, 0, 0]}
                     maxBarSize={40}
-                    onClick={handleBarClick}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  
+                  {/* 添加透明的覆盖层来扩大点击区域 */}
+                  <Bar
+                    dataKey={() => monthlyChartData.reduce((max, d) => Math.max(max, d.usage), 0)}
+                    fill="transparent"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={40}
+                    onClick={(data, index) => handleBarClick(data, index)}
                     style={{ cursor: 'pointer' }}
                   />
                 </BarChart>
@@ -741,16 +778,16 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                   key={`line-chart-${rawChartData.length}-${prediction?.predictionData.length || 0}`}
                 >
                 <defs>
-                  {/* 余额线条渐变 */}
-                  <linearGradient id="balanceLineGradient" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#3B82F6" />
-                    <stop offset="100%" stopColor="#8B5CF6" />
+                  {/* 新的余额线渐变 - 从深蓝到青色 */}
+                  <linearGradient id="newBalanceGradient" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#1e40af" />
+                    <stop offset="100%" stopColor="#0891b2" />
                   </linearGradient>
                   
-                  {/* 预测线条渐变 - 橙色到粉色 */}
-                  <linearGradient id="predictedLineGradient" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#F97316" stopOpacity="0.8" />
-                    <stop offset="100%" stopColor="#EC4899" stopOpacity="0.8" />
+                  {/* 新的预测线渐变 - 从深橙到红色 */}
+                  <linearGradient id="newPredictionGradient" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#ea580c" />
+                    <stop offset="100%" stopColor="#dc2626" />
                   </linearGradient>
                   
                   {/* 网格渐变 - 亮色模式 */}
