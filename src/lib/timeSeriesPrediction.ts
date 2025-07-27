@@ -55,9 +55,13 @@ const exponentialSmoothingPrediction = (balanceArray: number[], predictCount: nu
   
   console.log('📐 Final smoothed level:', level.toFixed(4), 'trend:', trend.toFixed(6))
   
-  // 生成预测
+  // 确保预测从最后实际余额开始
+  const lastActualBalance = balanceArray[balanceArray.length - 1]
+  console.log('🔗 Last actual balance:', lastActualBalance.toFixed(4), 'vs smoothed level:', level.toFixed(4))
+  
+  // 生成预测 - 从最后实际余额开始，应用预测的变化量
   const predictions = []
-  let currentLevel = level
+  let currentLevel = lastActualBalance  // 从实际余额开始
   let currentTrend = trend
   
   for (let i = 1; i <= predictCount; i++) {
@@ -144,6 +148,10 @@ const autoRegressivePrediction = (balanceArray: number[], predictCount: number) 
   let lastValues = balanceArray.slice(-order)
   let lastDiffs = diffs.slice(-order)
   
+  // 确保预测从最后实际余额开始
+  const lastActualBalance = balanceArray[balanceArray.length - 1]
+  console.log('🔗 AR: Last actual balance:', lastActualBalance.toFixed(4))
+  
   for (let i = 0; i < predictCount; i++) {
     // 预测下一个差分值
     let predictedDiff = 0
@@ -151,12 +159,13 @@ const autoRegressivePrediction = (balanceArray: number[], predictCount: number) 
       predictedDiff += phi[j] * lastDiffs[lastDiffs.length - 1 - j]
     }
     
-    // 转换回原始水平
-    const predictedValue = Math.max(0, lastValues[lastValues.length - 1] + predictedDiff)
+    // 转换回原始水平 - 确保从最后实际余额继续
+    const baseBalance = i === 0 ? lastActualBalance : predictions[i - 1]
+    const predictedValue = Math.max(0, baseBalance + predictedDiff)
     predictions.push(predictedValue)
     
     if (i < 5) {
-      console.log(`🔮 AR step ${i + 1}: diff=${predictedDiff.toFixed(6)}, value=${predictedValue.toFixed(4)}`)
+      console.log(`🔮 AR step ${i + 1}: base=${baseBalance.toFixed(4)}, diff=${predictedDiff.toFixed(6)}, value=${predictedValue.toFixed(4)}`)
     }
     
     // 更新历史序列
@@ -194,8 +203,12 @@ const movingAveragePrediction = (balanceArray: number[], predictCount: number) =
   const avgChange = totalChange / (recent.length - 1)
   console.log('📉 Average change per period:', avgChange.toFixed(6))
   
+  // 确保预测从最后实际余额开始
+  const lastActualBalance = balanceArray[balanceArray.length - 1]
+  console.log('🔗 MA: Last actual balance:', lastActualBalance.toFixed(4))
+  
   const predictions = []
-  let currentBalance = balanceArray[balanceArray.length - 1]
+  let currentBalance = lastActualBalance  // 从实际余额开始
   
   for (let i = 1; i <= predictCount; i++) {
     currentBalance = Math.max(0, currentBalance + avgChange)
@@ -304,20 +317,11 @@ export async function predictDailyUsage(
     })
   }
   
-  // 添加连接点和预测点 - 确保预测到一天结束或余额为0
+  // 添加预测点 - 直接从最后实际数据点开始，确保平滑连接
   const minuteInterval = 5
   const hourInterval = minuteInterval / 60
-  const connectionHour = currentHour + 0.001
   
-  predictionData.push({
-    hourNumber: connectionHour,
-    balance: lastPoint.balance,
-    timestamp: today.getTime() + (connectionHour * 60 * 60 * 1000),
-    hour: format(new Date(today.getTime() + (connectionHour * 60 * 60 * 1000)), 'HH:mm'),
-    isPredicted: true
-  })
-  
-  // 添加所有预测点，直到余额为0或到达一天结束
+  // 添加所有预测点，直接从下一个时间点开始，确保余额连续性
   for (let i = 0; i < predictedBalances.length; i++) {
     const h = currentHour + hourInterval * (i + 1)
     if (h >= 24) {
