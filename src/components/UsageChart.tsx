@@ -198,6 +198,31 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
   const dailyBudget = actualDataPoints.length > 0 ? actualDataPoints[0].dailyBudget : 
                      yesterdayDataPoints.length > 0 ? yesterdayDataPoints[0].dailyBudget : 25
 
+  // 计算选定日期的实际消耗和失效金额
+  const calculateDayStats = () => {
+    const dataPoints = activeTab === 'yesterday' ? yesterdayDataPoints : actualDataPoints
+    
+    if (dataPoints.length === 0) {
+      return { consumed: 0, expired: 0 }
+    }
+
+    // 获取当日预算
+    const budget = dataPoints[0].dailyBudget
+    
+    // 获取当日最后一个数据点的余额（最终余额）
+    const finalBalance = dataPoints[dataPoints.length - 1].balance
+    
+    // 计算实际消耗：预算 - 最终余额
+    const consumed = budget - finalBalance
+    
+    // 失效金额就是最终余额（零点重置时失效的金额）
+    const expired = finalBalance > 0 ? finalBalance : 0
+    
+    return { consumed, expired }
+  }
+
+  const dayStats = calculateDayStats()
+
   // 预测功能 - 在今日标签页时启用
   useEffect(() => {
     if (activeTab === 'today' && actualDataPoints.length > 0) {
@@ -622,6 +647,20 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                       )}
                     </div>
                   ) : null}
+                </div>
+              )}
+              
+              {/* 历史数据统计信息 - 昨日和自定义日期显示 */}
+              {(activeTab === 'yesterday' || (activeTab === 'custom' && selectedDate)) && actualDataPoints.length > 0 && (
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                  <div className="flex flex-wrap items-center gap-3 text-sm">
+                    <div className="text-gray-600 dark:text-gray-400">
+                      当日消耗: <span className="font-mono font-bold text-gray-900 dark:text-white">${dayStats.consumed.toFixed(2)}</span>
+                    </div>
+                    <div className="text-gray-600 dark:text-gray-400">
+                      失效: <span className="font-mono font-bold text-orange-600 dark:text-orange-400">${dayStats.expired.toFixed(2)}</span>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
