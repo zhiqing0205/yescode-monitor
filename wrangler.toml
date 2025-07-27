@@ -1,0 +1,17 @@
+name = "yescode-monitor-cron"
+main = "cloudflare-worker.js"
+compatibility_date = "2024-01-01"
+
+# Cron Triggers - 参考现有 GitHub Actions 的时间设置
+[triggers]
+crons = [
+  "*/5 * * * *",  # 每5分钟收集数据 (与 GitHub Actions 一致)
+  "5 0 * * *",    # 每日00:05重置 (与 GitHub Actions 一致，避免与0点冲突)
+  "0 4 * * *"     # 每日04:00通知检查 (UTC时间，对应中午12:00 UTC+8)
+]
+
+# Environment Variables (需要在 Cloudflare Dashboard 中设置)
+[env.production.vars]
+# APP_URL = "https://your-domain.com"
+# API_SECRET = "your-api-secret"
+# BARK_URL = "https://api.day.app/your-bark-key"

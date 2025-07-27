@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
-    "deploy": "next build && next start"
+    "deploy": "next build && next start",
+    "deploy:worker": "wrangler deploy",
+    "worker:dev": "wrangler dev",
+    "worker:tail": "wrangler tail"
   },
   "dependencies": {
     "@prisma/client": "^6.12.0",

@@ -1,4 +1,4 @@
-name: PackyCode Data Collection
+name: YesCode Data Collection
 
 on:
   schedule:
@@ -14,21 +14,47 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Call Data Collection API
+      - name: Call YesCode Data Collection API
         run: |
-          curl -X POST "${{ secrets.API_BASE_URL }}/api/collect" \
+          echo "🔄 Collecting YesCode usage data..."
+          response=$(curl -s -w "HTTP_CODE:%{http_code}" -X POST "${{ secrets.API_BASE_URL }}/api/collect" \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.API_SECRET }}" \
-            --fail --show-error --silent
+            -H "Authorization: Bearer ${{ secrets.API_SECRET }}")
+          
+          http_code=$(echo "$response" | sed -n 's/.*HTTP_CODE:\([0-9]*\)/\1/p')
+          response_body=$(echo "$response" | sed 's/HTTP_CODE:[0-9]*$//')
+          
+          echo "HTTP Status: $http_code"
+          echo "Response: $response_body"
+          
+          if [ "$http_code" -eq 200 ]; then
+            echo "✅ Data collection successful"
+          else
+            echo "❌ Data collection failed with status $http_code"
+            exit 1
+          fi
 
   daily-reset:
     if: github.event.schedule == '5 0 * * *' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     
     steps:
-      - name: Call Daily Reset API
+      - name: Call YesCode Daily Reset API
         run: |
-          curl -X POST "${{ secrets.API_BASE_URL }}/api/daily-reset" \
+          echo "🔄 Executing YesCode daily reset..."
+          response=$(curl -s -w "HTTP_CODE:%{http_code}" -X POST "${{ secrets.API_BASE_URL }}/api/daily-reset" \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.API_SECRET }}" \
-            --fail --show-error --silent
+            -H "Authorization: Bearer ${{ secrets.API_SECRET }}")
+          
+          http_code=$(echo "$response" | sed -n 's/.*HTTP_CODE:\([0-9]*\)/\1/p')
+          response_body=$(echo "$response" | sed 's/HTTP_CODE:[0-9]*$//')
+          
+          echo "HTTP Status: $http_code"
+          echo "Response: $response_body"
+          
+          if [ "$http_code" -eq 200 ]; then
+            echo "✅ Daily reset successful"
+          else
+            echo "❌ Daily reset failed with status $http_code"
+            exit 1
+          fi
