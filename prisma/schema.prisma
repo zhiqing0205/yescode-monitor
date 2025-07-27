@@ -17,35 +17,17 @@ model UsageRecord {
   id        BigInt   @id @default(autoincrement())
   timestamp DateTime @default(now()) @db.Timestamptz
   
-  // YesCode specific fields
-  userId     Int
-  username   String
-  email      String
-  apiKey     String
-  subscriptionBalance Decimal
-  payAsYouGoBalance   Decimal
-  balance    Decimal
-  subscriptionPlanId  Int
-  subscriptionExpiry  DateTime @db.Timestamptz
-  preferredProviderId Int
-  emailVerified       Boolean
-  currentMonthSpend   Decimal
-  lastMonthReset      DateTime @db.Timestamptz
-  lastDailyBalanceAdd DateTime @db.Timestamptz
-  referralCode        String
-  referredByUserId    Int?
-  totalReferralEarnings Decimal
+  // Essential monitoring fields only
+  userId     Int      // 用户ID (不敏感的数字标识符)
+  balance    Decimal  // 当前余额
+  subscriptionPlanId  Int  // 订阅计划ID
+  subscriptionExpiry  DateTime @db.Timestamptz  // 订阅到期时间
+  currentMonthSpend   Decimal  // 当月消费
   
-  // Subscription plan details
-  planName         String
-  planDescription  String
-  planType         String
-  planPrice        Decimal
-  dailyBalance     Decimal
-  monthlySpendLimit Decimal
-  initialBalance   Decimal
-  planStock        Int
-  planIsActive     Boolean
+  // Plan details for monitoring
+  planName         String   // 计划名称
+  dailyBalance     Decimal  // 每日配额
+  monthlySpendLimit Decimal // 月消费限额
   
   createdAt DateTime @default(now()) @db.Timestamptz
   

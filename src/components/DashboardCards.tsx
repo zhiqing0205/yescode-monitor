@@ -369,11 +369,7 @@ export function DashboardCards({ data, monthlyStats = [] }: DashboardCardsProps)
                 {daysUntilExpiry} <span className="text-xl font-medium text-gray-500 dark:text-gray-400">天</span>
               </p>
               <div className="flex items-center justify-end gap-2 text-base">
-                <span className={`font-bold capitalize ${
-                  latestRecord.subscriptionPlanId === 1 ? 'text-blue-500' :
-                  latestRecord.subscriptionPlanId === 2 ? 'text-purple-500' :
-                  'text-green-500'
-                }`}>
+                <span className="font-bold text-blue-600 dark:text-blue-400">
                   {latestRecord.planName || 'Unknown'}
                 </span>
                 <span className="text-gray-500 dark:text-gray-400">
