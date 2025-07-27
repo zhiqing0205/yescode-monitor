@@ -141,8 +141,8 @@ export async function POST() {
           
           if (shouldSendNotification(expirationDate)) {
             const expiration = DateTime.fromJSDate(expirationDate).setZone(CHINA_TIMEZONE)
-            const title = '🚨 PackyCode Token 即将到期提醒'
-            const body = `您的 PackyCode JWT Token 将于明天 ${expiration.toFormat('HH:mm')} 到期，请及时续期以避免服务中断。`
+            const title = '🚨 YesCode Token 即将到期提醒'
+            const body = `您的 YesCode JWT Token 将于明天 ${expiration.toFormat('HH:mm')} 到期，请及时续期以避免服务中断。`
             
             const result = await sendBarkNotification(title, body)
             notifications.push({
@@ -164,18 +164,18 @@ export async function POST() {
         orderBy: { timestamp: 'desc' }
       })
 
-      if (latestRecord && latestRecord.planExpiresAt) {
-        const planExpiresAt = latestRecord.planExpiresAt.toISOString()
+      if (latestRecord && latestRecord.subscriptionExpiry) {
+        const subscriptionExpiry = latestRecord.subscriptionExpiry.toISOString()
         
-        if (shouldSendSubscriptionNotification(planExpiresAt)) {
-          const expiration = DateTime.fromJSDate(latestRecord.planExpiresAt).setZone(CHINA_TIMEZONE)
-          const title = '🚨 PackyCode 订阅即将到期提醒'
-          const body = `您的 PackyCode ${latestRecord.planType?.toUpperCase() || 'PRO'} 订阅将于明天 ${expiration.toFormat('HH:mm')} 到期，请及时续费以避免服务中断。`
+        if (shouldSendSubscriptionNotification(subscriptionExpiry)) {
+          const expiration = DateTime.fromJSDate(latestRecord.subscriptionExpiry).setZone(CHINA_TIMEZONE)
+          const title = '🚨 YesCode 订阅即将到期提醒'
+          const body = `您的 YesCode ${latestRecord.planName || 'Basic'} 订阅将于明天 ${expiration.toFormat('HH:mm')} 到期，请及时续费以避免服务中断。`
           
           const result = await sendBarkNotification(title, body)
           notifications.push({
             type: 'Subscription',
-            planType: latestRecord.planType,
+            planType: latestRecord.planName,
             result,
             expirationTime: expiration.toFormat('yyyy-MM-dd HH:mm:ss')
           })

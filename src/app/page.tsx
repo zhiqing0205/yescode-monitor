@@ -113,7 +113,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white transition-colors">
-                  PackyCode Monitor
+                  YesCode Monitor
                 </h1>
                 <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base mt-1 font-medium transition-colors">
                   实时使用量监控与分析平台
@@ -175,7 +175,7 @@ export default function Dashboard() {
             <div className="space-y-6 sm:space-y-8">
               {/* 仪表板卡片 */}
               <div className="animate-breath">
-                <DashboardCards data={data} />
+                <DashboardCards data={data} monthlyStats={data?.monthlyStats || []} />
               </div>
 
               {/* 使用量图表 */}

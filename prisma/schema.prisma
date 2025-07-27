@@ -15,33 +15,51 @@ datasource db {
 
 model UsageRecord {
   id        BigInt   @id @default(autoincrement())
-  timestamp DateTime @default(now()) @db.Timestamptz // 明确使用带时区的时间戳
+  timestamp DateTime @default(now()) @db.Timestamptz
   
-  balanceUsd     Decimal
-  totalSpentUsd  Decimal
-  dailySpentUsd  Decimal
-  monthlySpentUsd Decimal
-  totalQuota     Int
-  usedQuota      Int
-  remainingQuota Int
+  // YesCode specific fields
+  userId     Int
+  username   String
+  email      String
+  apiKey     String
+  subscriptionBalance Decimal
+  payAsYouGoBalance   Decimal
+  balance    Decimal
+  subscriptionPlanId  Int
+  subscriptionExpiry  DateTime @db.Timestamptz
+  preferredProviderId Int
+  emailVerified       Boolean
+  currentMonthSpend   Decimal
+  lastMonthReset      DateTime @db.Timestamptz
+  lastDailyBalanceAdd DateTime @db.Timestamptz
+  referralCode        String
+  referredByUserId    Int?
+  totalReferralEarnings Decimal
   
-  planType       String
-  planExpiresAt  DateTime @db.Timestamptz
-  monthlyBudgetUsd Decimal
-  dailyBudgetUsd   Decimal
+  // Subscription plan details
+  planName         String
+  planDescription  String
+  planType         String
+  planPrice        Decimal
+  dailyBalance     Decimal
+  monthlySpendLimit Decimal
+  initialBalance   Decimal
+  planStock        Int
+  planIsActive     Boolean
   
   createdAt DateTime @default(now()) @db.Timestamptz
   
-  @@map("usage_records_v2")
+  @@map("usage_records_v3")
 }
 
 model DailyStats {
   id     BigInt @id @default(autoincrement())
-  date   DateTime @unique @db.Date // 明确使用日期类型
+  date   DateTime @unique @db.Date
   
   startBalance   Decimal
   endBalance     Decimal
-  totalUsed      Decimal
+  dailyAllowance Decimal  // 每日配额
+  currentSpend   Decimal  // 当前月消费
   usagePercentage Float
   
   notified50     Boolean @default(false)
@@ -51,7 +69,7 @@ model DailyStats {
   createdAt DateTime @default(now()) @db.Timestamptz
   updatedAt DateTime @updatedAt @db.Timestamptz
   
-  @@map("daily_stats_v2")
+  @@map("daily_stats_v3")
 }
 
 model SystemLog {
@@ -64,5 +82,5 @@ model SystemLog {
   
   createdAt DateTime @default(now()) @db.Timestamptz
   
-  @@map("system_logs_v2")
+  @@map("system_logs_v3")
 }

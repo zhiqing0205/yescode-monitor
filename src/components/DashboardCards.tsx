@@ -5,9 +5,10 @@ import { differenceInDays } from 'date-fns'
 
 interface DashboardCardsProps {
   data: any
+  monthlyStats?: any[]
 }
 
-export function DashboardCards({ data }: DashboardCardsProps) {
+export function DashboardCards({ data, monthlyStats = [] }: DashboardCardsProps) {
   if (!data?.latestRecord) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
@@ -40,15 +41,22 @@ export function DashboardCards({ data }: DashboardCardsProps) {
 
   const { latestRecord, todayStats } = data
   
-  const dailyUsed = parseFloat(latestRecord.dailySpentUsd || '0')
-  const dailyBudget = parseFloat(latestRecord.dailyBudgetUsd || '25')
-  const dailyPercentage = (dailyUsed / dailyBudget) * 100
+  // YesCode数据结构适配
+  const currentBalance = parseFloat(latestRecord.balance || '0')
+  const dailyQuota = parseFloat(latestRecord.dailyBalance || '20')
+  const dailyUsed = Math.max(0, dailyQuota - currentBalance)
+  const dailyPercentage = (dailyUsed / dailyQuota) * 100
 
-  const monthlyUsed = parseFloat(latestRecord.monthlySpentUsd || '0')
-  const monthlyBudget = parseFloat(latestRecord.monthlyBudgetUsd || '750')
-  const monthlyPercentage = (monthlyUsed / monthlyBudget) * 100
+  const monthlySpend = parseFloat(latestRecord.currentMonthSpend || '0')
+  
+  // 如果API返回的月消费为0，则从数据库统计单日消耗总和
+  const actualMonthlySpend = monthlySpend > 0 ? monthlySpend : 
+    monthlyStats.reduce((sum, stat) => sum + parseFloat(stat.currentSpend || '0'), 0)
+  
+  const monthlyLimit = parseFloat(latestRecord.monthlySpendLimit || '600')
+  const monthlyPercentage = (actualMonthlySpend / monthlyLimit) * 100
 
-  const planExpiresAt = new Date(latestRecord.planExpiresAt)
+  const planExpiresAt = new Date(latestRecord.subscriptionExpiry)
   const daysUntilExpiry = differenceInDays(planExpiresAt, new Date())
 
   const getUsageStatus = (percentage: number) => {
@@ -147,7 +155,7 @@ export function DashboardCards({ data }: DashboardCardsProps) {
                 <DollarSign className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-gray-600 dark:text-gray-300">日使用量</h3>
+                <h3 className="text-base font-semibold text-gray-600 dark:text-gray-300">日消耗量</h3>
                 <div className="flex items-center gap-2 mt-1">
                   <dailyStatus.icon className={`w-4 h-4 ${
                     dailyStatus.color === 'red' ? 'text-red-500' :
@@ -182,7 +190,7 @@ export function DashboardCards({ data }: DashboardCardsProps) {
                   {dailyPercentage.toFixed(1)}%
                 </span>
                 <span className="text-gray-500 dark:text-gray-400">
-                  /${dailyBudget.toFixed(2)}
+                  /${dailyQuota.toFixed(2)}
                 </span>
               </div>
             </div>
@@ -203,10 +211,10 @@ export function DashboardCards({ data }: DashboardCardsProps) {
             </div>
             <div className="flex justify-between items-center">
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                剩余 ${(dailyBudget - dailyUsed).toFixed(2)}
+                剩余 ${(dailyQuota - dailyUsed).toFixed(2)}
               </p>
               <p className="text-sm text-gray-400 dark:text-gray-500">
-                预算 ${dailyBudget.toFixed(2)}
+                配额 ${dailyQuota.toFixed(2)}
               </p>
             </div>
           </div>
@@ -239,7 +247,7 @@ export function DashboardCards({ data }: DashboardCardsProps) {
                 <CalendarDays className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-gray-600 dark:text-gray-300">月使用量</h3>
+                <h3 className="text-base font-semibold text-gray-600 dark:text-gray-300">月消耗量</h3>
                 <div className="flex items-center gap-2 mt-1">
                   <monthlyStatus.icon className={`w-4 h-4 ${
                     monthlyStatus.color === 'red' ? 'text-red-500' :
@@ -262,7 +270,7 @@ export function DashboardCards({ data }: DashboardCardsProps) {
             {/* 数字部分 - 移到右边并增加上边距 */}
             <div className="text-right mt-3">
               <p className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2">
-                ${monthlyUsed.toFixed(2)}
+                ${actualMonthlySpend.toFixed(2)}
               </p>
               <div className="flex items-center justify-end gap-2 text-base">
                 <span className={`font-bold ${
@@ -274,7 +282,7 @@ export function DashboardCards({ data }: DashboardCardsProps) {
                   {monthlyPercentage.toFixed(1)}%
                 </span>
                 <span className="text-gray-500 dark:text-gray-400">
-                  /${monthlyBudget.toFixed(2)}
+                  /${monthlyLimit.toFixed(2)}
                 </span>
               </div>
             </div>
@@ -295,10 +303,10 @@ export function DashboardCards({ data }: DashboardCardsProps) {
             </div>
             <div className="flex justify-between items-center">
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                剩余 ${(monthlyBudget - monthlyUsed).toFixed(2)}
+                剩余 ${(monthlyLimit - actualMonthlySpend).toFixed(2)}
               </p>
               <p className="text-sm text-gray-400 dark:text-gray-500">
-                预算 ${monthlyBudget.toFixed(2)}
+                限额 ${monthlyLimit.toFixed(2)}
               </p>
             </div>
           </div>
@@ -362,11 +370,11 @@ export function DashboardCards({ data }: DashboardCardsProps) {
               </p>
               <div className="flex items-center justify-end gap-2 text-base">
                 <span className={`font-bold capitalize ${
-                  latestRecord.planType === 'basic' ? 'text-blue-500' :
-                  latestRecord.planType === 'pro' ? 'text-purple-500' :
+                  latestRecord.subscriptionPlanId === 1 ? 'text-blue-500' :
+                  latestRecord.subscriptionPlanId === 2 ? 'text-purple-500' :
                   'text-green-500'
                 }`}>
-                  {latestRecord.planType}
+                  {latestRecord.planName || 'Unknown'}
                 </span>
                 <span className="text-gray-500 dark:text-gray-400">
                   距离到期

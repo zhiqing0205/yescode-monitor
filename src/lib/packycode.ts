@@ -1,55 +1,72 @@
-export interface PackyCodeUser {
-  user_id: string
+export interface YesCodeUser {
+  id: number
   username: string
   email: string
-  user_type: string
-  balance_usd: string
-  total_spent_usd: string
   api_key: string
+  subscription_balance: number
+  pay_as_you_go_balance: number
+  balance: number
+  subscription_plan_id: number
+  subscription_plan: {
+    id: number
+    name: string
+    description: string
+    plan_type: string
+    price: number
+    daily_balance: number
+    monthly_spend_limit: number
+    initial_balance: number
+    stock: number
+    is_active: boolean
+    created_at: string
+    updated_at: string
+  }
+  subscription_expiry: string
+  preferred_provider_id: number
+  email_verified: boolean
+  oauth_id: string | null
+  current_month_spend: number
+  last_month_reset: string
+  last_daily_balance_add: string
+  referral_code: string
+  referred_by_user_id: number | null
+  total_referral_earnings: number
   created_at: string
-  plan_type: string
-  plan_expires_at: string
-  monthly_budget_usd: string
-  daily_budget_usd: string
-  daily_spent_usd: string
-  monthly_spent_usd: string
-  total_quota: number
-  used_quota: number
-  remaining_quota: number
+  updated_at: string
 }
 
-export async function fetchPackyCodeUserInfo(): Promise<PackyCodeUser> {
-  console.log('Calling PackyCode API...')
+export async function fetchYesCodeUserInfo(): Promise<YesCodeUser> {
+  console.log('Calling YesCode API...')
   
   if (!process.env.PACKYCODE_JWT_TOKEN) {
     throw new Error('PACKYCODE_JWT_TOKEN environment variable is not set')
   }
   
   try {
-    const response = await fetch('https://www.packycode.com/api/backend/users/info', {
+    const response = await fetch('https://co.yes.vg/api/v1/auth/profile', {
       headers: {
         'Authorization': `Bearer ${process.env.PACKYCODE_JWT_TOKEN}`,
         'Content-Type': 'application/json',
       },
     })
 
-    console.log('PackyCode API response status:', response.status)
+    console.log('YesCode API response status:', response.status)
     
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('PackyCode API error response:', errorText)
+      console.error('YesCode API error response:', errorText)
       throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`)
     }
 
     const data = await response.json()
-    console.log('PackyCode API response received successfully')
+    console.log('YesCode API response received successfully')
     return data
   } catch (error) {
-    console.error('Error in fetchPackyCodeUserInfo:', error)
+    console.error('Error in fetchYesCodeUserInfo:', error)
     if (error instanceof Error) {
-      throw new Error(`Failed to fetch PackyCode user info: ${error.message}`)
+      throw new Error(`Failed to fetch YesCode user info: ${error.message}`)
     }
-    throw new Error('Failed to fetch PackyCode user info: Unknown error')
+    throw new Error('Failed to fetch YesCode user info: Unknown error')
   }
 }
 

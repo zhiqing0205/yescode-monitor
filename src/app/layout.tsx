@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PackyCode Monitor",
-  description: "实时PackyCode使用量监控与分析平台",
+  title: "YesCode Monitor",
+  description: "实时YesCode使用量监控与分析平台",
   icons: {
     icon: [
       { url: '/favicon.svg', type: 'image/svg+xml' },

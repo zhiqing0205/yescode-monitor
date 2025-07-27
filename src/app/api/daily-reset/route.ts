@@ -79,13 +79,13 @@ export async function POST(request: NextRequest) {
     })
 
     if (yesterdayStats) {
-      const usageAmount = yesterdayStats.totalUsed.toNumber()
+      const dailyUsed = yesterdayStats.currentSpend.toNumber()
       const usagePercentage = yesterdayStats.usagePercentage
 
       await sendBarkNotification(
-        'PackyCode Daily Summary',
-        `Yesterday's usage: $${usageAmount.toFixed(4)} (${usagePercentage.toFixed(1)}%)`,
-        'packycode'
+        'YesCode Daily Summary',
+        `Yesterday's balance usage: ${dailyUsed.toFixed(4)} (${usagePercentage.toFixed(1)}%)`,
+        'yescode'
       )
 
       await prisma.systemLog.create({
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
           message: 'Daily reset completed and summary sent',
           details: JSON.stringify({
             date: yesterdayChina.toISO(),
-            usage: usageAmount,
+            dailyUsed: dailyUsed,
             percentage: usagePercentage
           }),
         },
@@ -110,9 +110,10 @@ export async function POST(request: NextRequest) {
       },
       create: {
         date: today,
-        startBalance: 25.0,
-        endBalance: 25.0,
-        totalUsed: 0.0,
+        startBalance: 20.0, // YesCode的每日配额是20
+        endBalance: 20.0,
+        dailyAllowance: 20.0,
+        currentSpend: 0.0,
         usagePercentage: 0.0,
         notified50: false,
         notified80: false,
@@ -143,9 +144,9 @@ export async function POST(request: NextRequest) {
     }
 
     await sendBarkNotification(
-      'PackyCode Monitor Error',
+      'YesCode Monitor Error',
       `Daily reset failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      'packycode'
+      'yescode'
     )
 
     return NextResponse.json(

@@ -1,6 +1,6 @@
-# PackyCode 监控系统
+# YesCode 监控系统
 
-一个基于 Next.js 构建的 PackyCode 使用量监控应用，提供实时跟踪、通知推送和数据分析功能。
+一个基于 Next.js 构建的 YesCode 使用量监控应用，提供实时跟踪、通知推送和数据分析功能。
 
 ## 功能特性
 
@@ -10,8 +10,8 @@
 - 24 小时余额变化趋势图表
 
 ### 📈 监控面板
-- **日使用量卡片**：显示当日消费情况和预算进度，动态状态指示器
-- **月使用量卡片**：展示月度消费与预算对比，可视化进度条
+- **月使用量卡片**：显示当月消费情况和预算进度，动态状态指示器
+- **余额状态卡片**：展示当前余额和订阅余额对比，可视化进度条
 - **订阅状态卡片**：显示套餐剩余天数和到期时间，30天周期进度条
 - **JWT Token 卡片**：实时监控 Token 有效期，7天周期进度条和到期提醒
 - **多维度图表视图**：
@@ -22,7 +22,7 @@
 
 ### 🔔 智能通知推送 (Bark)
 - API 请求失败告警
-- 日使用量阈值提醒（50%、80%、95%）
+- 月使用量阈值提醒（50%、80%、95%）
 - 每日使用量汇总报告
 - JWT Token 到期前一天提醒（中午12点推送）
 - 订阅到期前一天提醒（中午12点推送）
@@ -57,7 +57,7 @@
 ## 数据库结构
 
 ### UsageRecord (使用记录)
-存储每 5 分钟采集的完整 PackyCode API 响应数据，使用 BIGINT 自增主键和 UTC 时间戳。
+存储每 5 分钟采集的完整 YesCode API 响应数据，使用 BIGINT 自增主键和 UTC 时间戳。
 
 ### DailyStats (日统计)
 跟踪每日使用统计和通知状态，基于东八区时间计算。
@@ -73,7 +73,7 @@
 DATABASE_URL="postgresql://username:password@host:port/database"
 PACKYCODE_JWT_TOKEN="your_jwt_token_here"
 BARK_URL="https://api.day.app/your_device_key"
-NEXT_PUBLIC_GITHUB_URL="https://github.com/yourusername/packycode-monitor"
+NEXT_PUBLIC_GITHUB_URL="https://github.com/yourusername/yescode-monitor"
 API_SECRET="your_api_secret_for_cron_jobs"
 ```
 
@@ -103,7 +103,7 @@ API_SECRET="your_api_secret_for_cron_jobs"
 
 ## API 接口
 
-- `POST /api/collect` - 获取并存储 PackyCode 数据（定时任务触发）
+- `POST /api/collect` - 获取并存储 YesCode 数据（定时任务触发）
 - `POST /api/daily-reset` - 重置日统计并发送汇总（定时任务触发）
 - `POST /api/notify` - JWT Token 和订阅到期通知检查（GitHub Actions 触发）
 - `GET /api/dashboard` - 获取仪表盘数据（前端调用，包含今日、昨日和30天数据）
@@ -128,13 +128,13 @@ API_SECRET="your_api_secret_for_cron_jobs"
 
 应用会通过 Bark 发送以下通知：
 - API 请求失败告警
-- 日使用量阈值提醒（50%、80%、95%）
+- 月使用量阈值提醒（50%、80%、95%）
 - 每日使用量汇总报告
 - JWT Token 到期前一天提醒（中午12点触发）
 - 订阅套餐到期前一天提醒（中午12点触发）
 - 系统错误通知
 
-通知格式：`标题 / 消息内容 / 分组:packycode`
+通知格式：`标题 / 消息内容 / 分组:yescode`
 
 ### GitHub Actions 通知流程
 1. 每日中午12点（东八区）自动触发

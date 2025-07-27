@@ -147,7 +147,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
     .map(record => {
       // 直接使用数据库时间，系统环境已经是东八区
       const recordTime = new Date(record.timestamp)
-      const currentBalance = parseFloat(record.dailyBudgetUsd) - parseFloat(record.dailySpentUsd)
+      const currentBalance = parseFloat(record.balance) // 直接使用balance字段
       
       const hourNumber = recordTime.getHours() + recordTime.getMinutes() / 60
       
@@ -157,7 +157,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
         balance: parseFloat(currentBalance.toFixed(2)),
         timestamp: recordTime.getTime(),
         hasData: true,
-        dailyBudget: parseFloat(record.dailyBudgetUsd)
+        dailyBudget: parseFloat(record.dailyBalance) // 使用dailyBalance字段
       }
     })
     .sort((a, b) => a.timestamp - b.timestamp)
@@ -181,7 +181,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
     .map(record => {
       // 直接使用数据库时间
       const recordTime = new Date(record.timestamp)
-      const currentBalance = parseFloat(record.dailyBudgetUsd) - parseFloat(record.dailySpentUsd)
+      const currentBalance = parseFloat(record.balance) // 直接使用balance字段
       
       return {
         hour: format(recordTime, 'HH:mm'),
@@ -189,14 +189,14 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
         balance: parseFloat(currentBalance.toFixed(2)),
         timestamp: recordTime.getTime(),
         hasData: true,
-        dailyBudget: parseFloat(record.dailyBudgetUsd)
+        dailyBudget: parseFloat(record.dailyBalance) // 使用dailyBalance字段
       }
     })
     .sort((a, b) => a.timestamp - b.timestamp)
 
   // 获取预算值用于Y轴范围
   const dailyBudget = actualDataPoints.length > 0 ? actualDataPoints[0].dailyBudget : 
-                     yesterdayDataPoints.length > 0 ? yesterdayDataPoints[0].dailyBudget : 25
+                     yesterdayDataPoints.length > 0 ? yesterdayDataPoints[0].dailyBudget : 20
 
   // 计算选定日期的实际消耗和失效金额
   const calculateDayStats = () => {
@@ -433,8 +433,8 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
       return {
         date: dateStr,
         dateDisplay: format(date, 'MM/dd'),
-        usage: dayStats ? parseFloat(dayStats.totalUsed || '0') : 0,
-        budget: 25, // 默认预算，可以根据需要调整
+        usage: dayStats ? parseFloat(dayStats.currentSpend || '0') : 0, // 使用currentSpend字段
+        budget: 20, // YesCode的每日配额是20
         usagePercentage: dayStats ? parseFloat(dayStats.usagePercentage || '0') : 0,
         dayIndex: index
       }
@@ -538,7 +538,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-sm bg-blue-500" />
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  日使用量
+                  日消耗量
                 </span>
               </div>
               <span className="text-sm font-bold text-gray-900 dark:text-white">
@@ -547,7 +547,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
             </div>
             <div className="flex items-center justify-between gap-4">
               <span className="text-xs text-gray-500 dark:text-gray-400">
-                使用率
+                消耗率
               </span>
               <span className={`text-xs font-bold ${
                 dataPoint.usagePercentage > 80 ? 'text-red-500' : 
@@ -587,13 +587,13 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                   {activeTab === 'today' ? '当日余额变化趋势' : 
                    activeTab === 'yesterday' ? '昨日余额变化趋势' : 
                    activeTab === 'custom' && selectedDate ? `${format(selectedDate, 'MM月dd日')} 余额变化趋势` :
-                   '近30天使用统计'}
+                   '近30天消耗统计'}
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {activeTab === 'today' ? '显示当日当前余额 (预算 - 已用) 的变化' : 
-                   activeTab === 'yesterday' ? '显示昨日余额 (预算 - 已用) 的变化' : 
-                   activeTab === 'custom' && selectedDate ? `显示 ${format(selectedDate, 'yyyy-MM-dd')} 余额 (预算 - 已用) 的变化` :
-                   '显示最近30天的每日使用量情况'}
+                  {activeTab === 'today' ? '显示当日当前余额的变化' : 
+                   activeTab === 'yesterday' ? '显示昨日余额的变化' : 
+                   activeTab === 'custom' && selectedDate ? `显示 ${format(selectedDate, 'yyyy-MM-dd')} 余额的变化` :
+                   '显示最近30天的每日消耗量情况'}
                 </p>
               </div>
             </div>
@@ -956,7 +956,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                   : 'bg-blue-600'
               }`}></div>
               <span className="font-medium text-gray-700 dark:text-gray-300">
-                {(activeTab === 'today' || activeTab === 'yesterday') ? '当前余额' : '日使用量'}
+                {(activeTab === 'today' || activeTab === 'yesterday') ? '当前余额' : '日消耗量'}
               </span>
             </div>
             
@@ -990,7 +990,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                 { label: '数据天数', value: monthlyChartData.length },
                 { label: '最高单日', value: monthlyChartData.length > 0 ? `$${Math.max(...monthlyChartData.map(d => d.usage)).toFixed(2)}` : '$0.00' },
                 { label: '最低单日', value: monthlyChartData.length > 0 ? `$${Math.min(...monthlyChartData.map(d => d.usage)).toFixed(2)}` : '$0.00' },
-                { label: '平均使用', value: monthlyChartData.length > 0 ? `$${(monthlyChartData.reduce((sum, d) => sum + d.usage, 0) / monthlyChartData.length).toFixed(2)}` : '$0.00' },
+                { label: '平均消耗', value: monthlyChartData.length > 0 ? `$${(monthlyChartData.reduce((sum, d) => sum + d.usage, 0) / monthlyChartData.length).toFixed(2)}` : '$0.00' },
               ].map((stat, index) => (
                 <div key={index} className="text-center">
                   <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{stat.label}</p>

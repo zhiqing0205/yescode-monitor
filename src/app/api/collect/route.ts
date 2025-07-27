@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { fetchPackyCodeUserInfo, sendBarkNotification } from '@/lib/packycode'
+import { fetchYesCodeUserInfo, sendBarkNotification } from '@/lib/packycode'
 import { Decimal } from '@prisma/client/runtime/library'
 import { DateTime } from 'luxon'
 
@@ -71,24 +71,39 @@ export async function POST(request: NextRequest) {
       throw error
     }
     
-    console.log('Fetching PackyCode user info...')
-    const userInfo = await fetchPackyCodeUserInfo()
-    console.log('PackyCode user info fetched successfully:', { userId: userInfo.user_id })
+    console.log('Fetching YesCode user info...')
+    const userInfo = await fetchYesCodeUserInfo()
+    console.log('YesCode user info fetched successfully:', { userId: userInfo.id })
     
     console.log('Creating usage record...')
     const usageRecord = await prisma.usageRecord.create({
       data: {
-        balanceUsd: new Decimal(userInfo.balance_usd),
-        totalSpentUsd: new Decimal(userInfo.total_spent_usd),
-        dailySpentUsd: new Decimal(userInfo.daily_spent_usd),
-        monthlySpentUsd: new Decimal(userInfo.monthly_spent_usd),
-        totalQuota: userInfo.total_quota,
-        usedQuota: userInfo.used_quota,
-        remainingQuota: userInfo.remaining_quota,
-        planType: userInfo.plan_type,
-        planExpiresAt: new Date(userInfo.plan_expires_at),
-        monthlyBudgetUsd: new Decimal(userInfo.monthly_budget_usd),
-        dailyBudgetUsd: new Decimal(userInfo.daily_budget_usd),
+        userId: userInfo.id,
+        username: userInfo.username,
+        email: userInfo.email,
+        apiKey: userInfo.api_key,
+        subscriptionBalance: new Decimal(userInfo.subscription_balance),
+        payAsYouGoBalance: new Decimal(userInfo.pay_as_you_go_balance),
+        balance: new Decimal(userInfo.balance),
+        subscriptionPlanId: userInfo.subscription_plan_id,
+        subscriptionExpiry: new Date(userInfo.subscription_expiry),
+        preferredProviderId: userInfo.preferred_provider_id,
+        emailVerified: userInfo.email_verified,
+        currentMonthSpend: new Decimal(userInfo.current_month_spend),
+        lastMonthReset: new Date(userInfo.last_month_reset),
+        lastDailyBalanceAdd: new Date(userInfo.last_daily_balance_add),
+        referralCode: userInfo.referral_code,
+        referredByUserId: userInfo.referred_by_user_id,
+        totalReferralEarnings: new Decimal(userInfo.total_referral_earnings),
+        planName: userInfo.subscription_plan.name,
+        planDescription: userInfo.subscription_plan.description,
+        planType: userInfo.subscription_plan.plan_type,
+        planPrice: new Decimal(userInfo.subscription_plan.price),
+        dailyBalance: new Decimal(userInfo.subscription_plan.daily_balance),
+        monthlySpendLimit: new Decimal(userInfo.subscription_plan.monthly_spend_limit),
+        initialBalance: new Decimal(userInfo.subscription_plan.initial_balance),
+        planStock: userInfo.subscription_plan.stock,
+        planIsActive: userInfo.subscription_plan.is_active,
       },
     })
     console.log('Usage record created successfully:', { recordId: usageRecord.id.toString() })
@@ -103,61 +118,67 @@ export async function POST(request: NextRequest) {
       where: { date: new Date(chinaDateOnly) }
     })
 
+    // 计算每日余额使用百分比：(每日配额 - 当前余额) / 每日配额 * 100
+    const dailyQuota = userInfo.subscription_plan.daily_balance
+    const currentBalance = userInfo.balance
+    const dailyUsed = Math.max(0, dailyQuota - currentBalance) // 防止负数
+    const dailyUsagePercentage = (dailyUsed / dailyQuota) * 100
+    
     if (!dailyStats) {
       console.log('Creating new daily stats record...')
       dailyStats = await prisma.dailyStats.create({
         data: {
           date: new Date(chinaDateOnly),
-          startBalance: new Decimal(userInfo.daily_budget_usd),
-          endBalance: new Decimal(userInfo.balance_usd),
-          totalUsed: new Decimal(userInfo.daily_spent_usd),
-          usagePercentage: parseFloat(userInfo.daily_spent_usd) / parseFloat(userInfo.daily_budget_usd) * 100,
+          startBalance: new Decimal(dailyQuota), // 每日开始时的配额
+          endBalance: new Decimal(currentBalance), // 当前余额
+          dailyAllowance: new Decimal(dailyQuota), // 每日配额
+          currentSpend: new Decimal(dailyUsed), // 当日已使用
+          usagePercentage: dailyUsagePercentage,
         },
       })
       console.log('New daily stats record created:', { statsId: dailyStats.id.toString() })
     } else {
       console.log('Updating existing daily stats record...', { statsId: dailyStats.id.toString() })
-      const usagePercentage = parseFloat(userInfo.daily_spent_usd) / parseFloat(userInfo.daily_budget_usd) * 100
       
       dailyStats = await prisma.dailyStats.update({
         where: { id: dailyStats.id },
         data: {
-          endBalance: new Decimal(userInfo.balance_usd),
-          totalUsed: new Decimal(userInfo.daily_spent_usd),
-          usagePercentage,
+          endBalance: new Decimal(currentBalance),
+          currentSpend: new Decimal(dailyUsed),
+          usagePercentage: dailyUsagePercentage,
         },
       })
-      console.log('Daily stats updated, usage percentage:', usagePercentage.toFixed(2) + '%')
+      console.log('Daily stats updated, daily usage percentage:', dailyUsagePercentage.toFixed(2) + '%')
 
-      // 检查通知阈值
-      if (usagePercentage >= 50 && !dailyStats.notified50) {
+      // 检查通知阈值 - 基于每日余额使用百分比
+      if (dailyUsagePercentage >= 50 && !dailyStats.notified50) {
         console.log('Sending 50% threshold notification...')
         await sendBarkNotification(
-          'PackyCode Usage Alert',
-          `Daily usage has reached ${usagePercentage.toFixed(1)}% (50% threshold)`,
-          'packycode'
+          'YesCode Usage Alert',
+          `Daily balance usage has reached ${dailyUsagePercentage.toFixed(1)}% (50% threshold)`,
+          'yescode'
         )
         await prisma.dailyStats.update({
           where: { id: dailyStats.id },
           data: { notified50: true }
         })
-      } else if (usagePercentage >= 80 && !dailyStats.notified80) {
+      } else if (dailyUsagePercentage >= 80 && !dailyStats.notified80) {
         console.log('Sending 80% threshold notification...')
         await sendBarkNotification(
-          'PackyCode Usage Alert',
-          `Daily usage has reached ${usagePercentage.toFixed(1)}% (80% threshold)`,
-          'packycode'
+          'YesCode Usage Alert',
+          `Daily balance usage has reached ${dailyUsagePercentage.toFixed(1)}% (80% threshold)`,
+          'yescode'
         )
         await prisma.dailyStats.update({
           where: { id: dailyStats.id },
           data: { notified80: true }
         })
-      } else if (usagePercentage >= 95 && !dailyStats.notified95) {
+      } else if (dailyUsagePercentage >= 95 && !dailyStats.notified95) {
         console.log('Sending 95% threshold notification...')
         await sendBarkNotification(
-          'PackyCode Usage Critical',
-          `Daily usage has reached ${usagePercentage.toFixed(1)}% (95% threshold)`,
-          'packycode'
+          'YesCode Usage Critical',
+          `Daily balance usage has reached ${dailyUsagePercentage.toFixed(1)}% (95% threshold)`,
+          'yescode'
         )
         await prisma.dailyStats.update({
           where: { id: dailyStats.id },
@@ -170,8 +191,8 @@ export async function POST(request: NextRequest) {
     await prisma.systemLog.create({
       data: {
         type: 'SUCCESS',
-        message: 'Successfully fetched and recorded PackyCode usage data',
-        details: JSON.stringify({ userId: userInfo.user_id, balance: userInfo.balance_usd }),
+        message: 'Successfully fetched and recorded YesCode usage data',
+        details: JSON.stringify({ userId: userInfo.id, balance: userInfo.balance }),
       },
     })
 
@@ -189,7 +210,7 @@ export async function POST(request: NextRequest) {
       await prisma.systemLog.create({
         data: {
           type: 'ERROR',
-          message: 'Failed to fetch PackyCode usage data',
+          message: 'Failed to fetch YesCode usage data',
           details: error instanceof Error ? error.message : 'Unknown error',
         },
       })
@@ -207,9 +228,9 @@ export async function POST(request: NextRequest) {
 
     try {
       await sendBarkNotification(
-        'PackyCode Monitor Error',
+        'YesCode Monitor Error',
         `Failed to fetch usage data: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        'packycode'
+        'yescode'
       )
     } catch (notificationError) {
       console.error('Failed to send error notification:', notificationError)
@@ -217,7 +238,7 @@ export async function POST(request: NextRequest) {
 
     console.log('Returning 500 server error response')
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch PackyCode data', details: error instanceof Error ? error.message : 'Unknown error' },
+      { success: false, error: 'Failed to fetch YesCode data', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }
