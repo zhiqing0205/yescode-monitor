@@ -133,39 +133,60 @@ export async function POST(request: NextRequest) {
       console.log('Daily stats updated, daily usage percentage:', dailyUsagePercentage.toFixed(2) + '%')
 
       // 检查通知阈值 - 基于每日余额使用百分比
-      if (dailyUsagePercentage >= 50 && !dailyStats.notified50) {
-        console.log('Sending 50% threshold notification...')
-        await sendBarkNotification(
-          'YesCode Usage Alert',
-          `Daily balance usage has reached ${dailyUsagePercentage.toFixed(1)}% (50% threshold)`,
-          'yescode'
-        )
-        await prisma.dailyStats.update({
-          where: { id: dailyStats.id },
-          data: { notified50: true }
-        })
-      } else if (dailyUsagePercentage >= 80 && !dailyStats.notified80) {
-        console.log('Sending 80% threshold notification...')
-        await sendBarkNotification(
-          'YesCode Usage Alert',
-          `Daily balance usage has reached ${dailyUsagePercentage.toFixed(1)}% (80% threshold)`,
-          'yescode'
-        )
-        await prisma.dailyStats.update({
-          where: { id: dailyStats.id },
-          data: { notified80: true }
-        })
-      } else if (dailyUsagePercentage >= 95 && !dailyStats.notified95) {
-        console.log('Sending 95% threshold notification...')
+      // 使用独立判断而非 else if，支持同步标记但只触发最高阈值的通知
+      let shouldNotify = false;
+      let notificationLevel = '';
+      let updateData: any = {};
+
+      if (dailyUsagePercentage >= 95 && !dailyStats.notified95) {
+        // 超过95%：标记所有阈值，只触发95%通知
+        shouldNotify = true;
+        notificationLevel = '95';
+        updateData = { 
+          notified50: true, 
+          notified80: true, 
+          notified95: true 
+        };
+        console.log('Triggering 95% threshold notification and marking all lower thresholds...');
         await sendBarkNotification(
           'YesCode Usage Critical',
           `Daily balance usage has reached ${dailyUsagePercentage.toFixed(1)}% (95% threshold)`,
           'yescode'
-        )
+        );
+      } else if (dailyUsagePercentage >= 80 && !dailyStats.notified80) {
+        // 超过80%：标记50%和80%，只触发80%通知
+        shouldNotify = true;
+        notificationLevel = '80';
+        updateData = { 
+          notified50: true, 
+          notified80: true 
+        };
+        console.log('Triggering 80% threshold notification and marking 50% threshold...');
+        await sendBarkNotification(
+          'YesCode Usage Alert',
+          `Daily balance usage has reached ${dailyUsagePercentage.toFixed(1)}% (80% threshold)`,
+          'yescode'
+        );
+      } else if (dailyUsagePercentage >= 50 && !dailyStats.notified50) {
+        // 超过50%：只标记和触发50%通知
+        shouldNotify = true;
+        notificationLevel = '50';
+        updateData = { notified50: true };
+        console.log('Triggering 50% threshold notification...');
+        await sendBarkNotification(
+          'YesCode Usage Alert',
+          `Daily balance usage has reached ${dailyUsagePercentage.toFixed(1)}% (50% threshold)`,
+          'yescode'
+        );
+      }
+
+      // 统一更新通知状态
+      if (shouldNotify) {
         await prisma.dailyStats.update({
           where: { id: dailyStats.id },
-          data: { notified95: true }
-        })
+          data: updateData
+        });
+        console.log(`Updated notification flags for ${notificationLevel}% threshold:`, updateData);
       }
     }
 
