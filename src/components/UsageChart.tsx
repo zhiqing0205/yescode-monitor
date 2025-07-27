@@ -549,81 +549,32 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
       
       <div className="relative p-4 sm:p-6">
         {/* 头部区域 */}
-        <div className="space-y-4 mb-4">
-          {/* 标题和图标 */}
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg">
-              {activeTab === '30days' ? <Calendar className="w-6 h-6" /> : activeTab === 'today' ? <Brain className="w-6 h-6" /> : <BarChart3 className="w-6 h-6" />}
-            </div>
-            <div className="flex-1">
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                {activeTab === 'today' ? '当日余额变化趋势' : 
-                 activeTab === 'yesterday' ? '昨日余额变化趋势' : 
-                 activeTab === 'custom' && selectedDate ? `${format(selectedDate, 'MM月dd日')} 余额变化趋势` :
-                 '近30天使用统计'}
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {activeTab === 'today' ? '显示当日当前余额 (预算 - 已用) 的变化' : 
-                 activeTab === 'yesterday' ? '显示昨日余额 (预算 - 已用) 的变化' : 
-                 activeTab === 'custom' && selectedDate ? `显示 ${format(selectedDate, 'yyyy-MM-dd')} 余额 (预算 - 已用) 的变化` :
-                 '显示最近30天的每日使用量情况'}
-              </p>
-            </div>
-          </div>
-
-          {/* 控制按钮和预测信息区域 */}
-          <div className="flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
-            {/* 左侧：Tab切换和日历 */}
-            <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-              {/* Tab切换按钮和日历选择器 */}
-              <div className="flex items-center gap-3">
-                <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-                  <button
-                    onClick={() => setActiveTab('today')}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 ${
-                      activeTab === 'today'
-                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                    }`}
-                  >
-                    <Clock className="w-4 h-4" />
-                    今日
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('yesterday')}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 ${
-                      activeTab === 'yesterday'
-                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                    }`}
-                  >
-                    <Clock className="w-4 h-4" />
-                    昨日
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('30days')}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 ${
-                      activeTab === '30days'
-                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                    }`}
-                  >
-                    <Calendar className="w-4 h-4" />
-                    30天
-                  </button>
-                </div>
-                
-                {/* 日历选择器 */}
-                <DatePicker 
-                  availableDates={availableDates}
-                  onDateSelect={handleDateSelect}
-                  selectedDate={selectedDate || undefined}
-                />
+        <div className="space-y-3">
+          {/* 标题和预测信息 */}
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
+            {/* 左侧：标题和图标 */}
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg">
+                {activeTab === '30days' ? <Calendar className="w-6 h-6" /> : activeTab === 'today' ? <Brain className="w-6 h-6" /> : <BarChart3 className="w-6 h-6" />}
+              </div>
+              <div className="flex-1">
+                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                  {activeTab === 'today' ? '当日余额变化趋势' : 
+                   activeTab === 'yesterday' ? '昨日余额变化趋势' : 
+                   activeTab === 'custom' && selectedDate ? `${format(selectedDate, 'MM月dd日')} 余额变化趋势` :
+                   '近30天使用统计'}
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {activeTab === 'today' ? '显示当日当前余额 (预算 - 已用) 的变化' : 
+                   activeTab === 'yesterday' ? '显示昨日余额 (预算 - 已用) 的变化' : 
+                   activeTab === 'custom' && selectedDate ? `显示 ${format(selectedDate, 'yyyy-MM-dd')} 余额 (预算 - 已用) 的变化` :
+                   '显示最近30天的每日使用量情况'}
+                </p>
               </div>
             </div>
 
-            {/* 右侧：预测信息 */}
-            <div className="flex flex-col sm:flex-row gap-3">
+            {/* 右侧：预测信息 - PC端在右上角，移动端在下方 */}
+            <div className="lg:flex-shrink-0">
               {/* 30天模式提示 */}
               {activeTab === '30days' && (
                 <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg">
@@ -675,12 +626,60 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
               )}
             </div>
           </div>
+
+          {/* Tab切换和日历选择器 - PC端在右侧预测信息下方，移动端居中 */}
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-center lg:justify-end">
+            <div className="flex items-center gap-3 justify-center lg:justify-end">
+              <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+                <button
+                  onClick={() => setActiveTab('today')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 ${
+                    activeTab === 'today'
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Clock className="w-4 h-4" />
+                  今日
+                </button>
+                <button
+                  onClick={() => setActiveTab('yesterday')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 ${
+                    activeTab === 'yesterday'
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Clock className="w-4 h-4" />
+                  昨日
+                </button>
+                <button
+                  onClick={() => setActiveTab('30days')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 ${
+                    activeTab === '30days'
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Calendar className="w-4 h-4" />
+                  30天
+                </button>
+              </div>
+              
+              {/* 日历选择器 */}
+              <DatePicker 
+                availableDates={availableDates}
+                onDateSelect={handleDateSelect}
+                selectedDate={selectedDate || undefined}
+              />
+            </div>
+          </div>
         </div>
         
         {/* 图表容器 */}
         <div className="relative">
           <div 
-            className="h-80 w-full focus:outline-none" 
+            className="h-72 w-full focus:outline-none" 
             style={{ outline: 'none', border: 'none' }} 
             tabIndex={-1}
             onFocus={(e) => e.target.blur()}
