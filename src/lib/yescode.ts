@@ -38,14 +38,14 @@ export interface YesCodeUser {
 export async function fetchYesCodeUserInfo(): Promise<YesCodeUser> {
   console.log('Calling YesCode API...')
   
-  if (!process.env.PACKYCODE_JWT_TOKEN) {
-    throw new Error('PACKYCODE_JWT_TOKEN environment variable is not set')
+  if (!process.env.YESCODE_JWT_TOKEN) {
+    throw new Error('YESCODE_JWT_TOKEN environment variable is not set')
   }
   
   try {
     const response = await fetch('https://co.yes.vg/api/v1/auth/profile', {
       headers: {
-        'Authorization': `Bearer ${process.env.PACKYCODE_JWT_TOKEN}`,
+        'Authorization': `Bearer ${process.env.YESCODE_JWT_TOKEN}`,
         'Content-Type': 'application/json',
       },
     })

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { fetchYesCodeUserInfo, sendBarkNotification } from '@/lib/packycode'
+import { fetchYesCodeUserInfo, sendBarkNotification } from '@/lib/yescode'
 import { Decimal } from '@prisma/client/runtime/library'
 import { DateTime } from 'luxon'
 

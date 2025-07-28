@@ -178,7 +178,7 @@ export async function GET() {
     console.log(`30天DailyStats记录数量: ${monthlyStats.length}`)
 
     // 获取JWT token信息
-    const jwtToken = process.env.PACKYCODE_JWT_TOKEN
+    const jwtToken = process.env.YESCODE_JWT_TOKEN
     const tokenInfo = getTokenExpirationInfo(jwtToken)
 
     // 序列化数据，处理BigInt

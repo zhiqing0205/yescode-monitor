@@ -71,7 +71,7 @@
 
 ```bash
 DATABASE_URL="postgresql://username:password@host:port/database"
-PACKYCODE_JWT_TOKEN="your_jwt_token_here"
+YESCODE_JWT_TOKEN="your_jwt_token_here"
 BARK_URL="https://api.day.app/your_device_key"
 NEXT_PUBLIC_GITHUB_URL="https://github.com/yourusername/yescode-monitor"
 API_SECRET="your_api_secret_for_cron_jobs"

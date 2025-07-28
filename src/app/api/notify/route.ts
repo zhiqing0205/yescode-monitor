@@ -130,7 +130,7 @@ export async function POST() {
     let subscriptionNotificationSent = false
 
     // 1. 检查JWT Token到期通知
-    const jwtToken = process.env.PACKYCODE_JWT_TOKEN
+    const jwtToken = process.env.YESCODE_JWT_TOKEN
     
     if (jwtToken) {
       try {

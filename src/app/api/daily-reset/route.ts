@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { sendBarkNotification } from '@/lib/packycode'
+import { sendBarkNotification } from '@/lib/yescode'
 import { DateTime } from 'luxon'
 
 const CHINA_TIMEZONE = 'Asia/Shanghai'
