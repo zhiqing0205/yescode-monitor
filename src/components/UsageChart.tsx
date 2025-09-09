@@ -147,7 +147,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
     .map(record => {
       // 直接使用数据库时间，系统环境已经是东八区
       const recordTime = new Date(record.timestamp)
-      const currentBalance = parseFloat(record.balance) // 直接使用balance字段
+      const currentBalance = parseFloat(record.balance) // 数据库中存储的balance字段来自subscription_balance
       
       const hourNumber = recordTime.getHours() + recordTime.getMinutes() / 60
       
@@ -181,7 +181,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
     .map(record => {
       // 直接使用数据库时间
       const recordTime = new Date(record.timestamp)
-      const currentBalance = parseFloat(record.balance) // 直接使用balance字段
+      const currentBalance = parseFloat(record.balance) // 数据库中存储的balance字段来自subscription_balance
       
       return {
         hour: format(recordTime, 'HH:mm'),

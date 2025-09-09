@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     const usageRecord = await prisma.usageRecord.create({
       data: {
         userId: userInfo.id,
-        balance: new Decimal(userInfo.balance),
+        balance: new Decimal(userInfo.subscription_balance),
         subscriptionPlanId: userInfo.subscription_plan_id,
         subscriptionExpiry: new Date(userInfo.subscription_expiry),
         currentMonthSpend: new Decimal(userInfo.current_month_spend),
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
 
     // 计算每日余额使用百分比：(每日配额 - 当前余额) / 每日配额 * 100
     const dailyQuota = userInfo.subscription_plan.daily_balance
-    const currentBalance = userInfo.balance
+    const currentBalance = userInfo.subscription_balance
     const dailyUsed = Math.max(0, dailyQuota - currentBalance) // 防止负数
     const dailyUsagePercentage = (dailyUsed / dailyQuota) * 100
     
@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
       data: {
         type: 'SUCCESS',
         message: 'Successfully fetched and recorded YesCode usage data',
-        details: JSON.stringify({ userId: userInfo.id, balance: userInfo.balance }),
+        details: JSON.stringify({ userId: userInfo.id, balance: userInfo.subscription_balance }),
       },
     })
 

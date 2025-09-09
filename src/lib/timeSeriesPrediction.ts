@@ -248,7 +248,7 @@ export async function predictDailyUsage(
   // 按时间排序
   const sortedData = [...rawData].sort((a, b) => a.timestamp - b.timestamp)
   const lastPoint = sortedData[sortedData.length - 1]
-  console.log('🎯 Last data point balance:', lastPoint.balance)
+  console.log('🎯 Last data point balance (from subscription_balance):', lastPoint.balance)
   
   // 提取数据用于预测
   const balanceArray = sortedData.map(point => point.balance)

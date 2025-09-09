@@ -42,6 +42,7 @@ export function DashboardCards({ data, monthlyStats = [] }: DashboardCardsProps)
   const { latestRecord, todayStats } = data
   
   // YesCode数据结构适配
+  // 注意：数据库中的balance字段存储的是subscription_balance的值
   const currentBalance = parseFloat(latestRecord.balance || '0')
   const dailyQuota = parseFloat(latestRecord.dailyBalance || '20')
   const dailyUsed = Math.max(0, dailyQuota - currentBalance)
@@ -57,7 +58,23 @@ export function DashboardCards({ data, monthlyStats = [] }: DashboardCardsProps)
   const monthlyPercentage = (actualMonthlySpend / monthlyLimit) * 100
 
   const planExpiresAt = new Date(latestRecord.subscriptionExpiry)
-  const daysUntilExpiry = differenceInDays(planExpiresAt, new Date())
+  const now = new Date()
+  const timeDiff = planExpiresAt.getTime() - now.getTime()
+  const hoursUntilExpiry = Math.floor(timeDiff / (1000 * 60 * 60))
+  const daysUntilExpiry = differenceInDays(planExpiresAt, now)
+  
+  // 格式化剩余时间显示
+  const formatTimeRemaining = (hours: number, days: number) => {
+    if (hours < 0) {
+      return { value: '已过期', unit: '', isExpired: true }
+    } else if (hours < 24) {
+      return { value: hours.toString(), unit: '小时', isExpired: false }
+    } else {
+      return { value: days.toString(), unit: '天', isExpired: false }
+    }
+  }
+  
+  const subscriptionTimeRemaining = formatTimeRemaining(hoursUntilExpiry, daysUntilExpiry)
 
   const getUsageStatus = (percentage: number) => {
     if (percentage >= 95) return { color: 'red', icon: AlertTriangle, label: '紧急' }
@@ -103,20 +120,46 @@ export function DashboardCards({ data, monthlyStats = [] }: DashboardCardsProps)
     return map[0] // 默认返回最低级状态
   }
 
-  // 计算订阅状态百分比 (已用时间 / 总时间 * 100)
+  // 计算订阅状态百分比 - 统一使用小时级别进度条
   const subscriptionTotalDays = 30
-  const subscriptionUsedDays = Math.max(0, subscriptionTotalDays - daysUntilExpiry)
-  const subscriptionPercentage = Math.min(100, Math.max(0, (subscriptionUsedDays / subscriptionTotalDays) * 100))
+  let subscriptionPercentage = 0
+  
+  if (subscriptionTimeRemaining.isExpired) {
+    subscriptionPercentage = 100 // 已过期
+  } else {
+    // 统一基于小时计算进度条，提供更精确的可视化
+    const totalHours = subscriptionTotalDays * 24
+    const usedHours = totalHours - hoursUntilExpiry
+    subscriptionPercentage = Math.min(100, Math.max(0, (usedHours / totalHours) * 100))
+  }
   
   // 获取Token信息
   const tokenInfo = data?.tokenInfo
   
-  // 计算Cookie状态百分比
+  // 计算Cookie状态和剩余时间 - 统一使用小时级别进度条
   const cookieTotalDays = 7
-  const cookieUsedDays = tokenInfo && tokenInfo.isValid 
-    ? Math.max(0, cookieTotalDays - tokenInfo.daysRemaining)
-    : cookieTotalDays // 如果无效则视为100%
-  const cookiePercentage = Math.min(100, Math.max(0, (cookieUsedDays / cookieTotalDays) * 100))
+  let cookiePercentage = 0
+  let cookieTimeRemaining = { value: 'N/A', unit: '', isExpired: true }
+  
+  if (tokenInfo && tokenInfo.isValid && !tokenInfo.error) {
+    // 计算更精确的剩余时间
+    const tokenExpiry = new Date(`${tokenInfo.expirationDate}T${tokenInfo.expirationTime}`)
+    const tokenTimeDiff = tokenExpiry.getTime() - now.getTime()
+    const tokenHoursRemaining = Math.floor(tokenTimeDiff / (1000 * 60 * 60))
+    
+    cookieTimeRemaining = formatTimeRemaining(tokenHoursRemaining, tokenInfo.daysRemaining)
+    
+    if (cookieTimeRemaining.isExpired) {
+      cookiePercentage = 100
+    } else {
+      // 统一基于小时计算进度条，提供更精确的可视化
+      const totalHours = cookieTotalDays * 24
+      const usedHours = totalHours - tokenHoursRemaining
+      cookiePercentage = Math.min(100, Math.max(0, (usedHours / totalHours) * 100))
+    }
+  } else {
+    cookiePercentage = 100 // 无效或错误时视为100%
+  }
 
   const subscriptionStatus = getUnifiedStatus(subscriptionPercentage, 'subscription')
   const cookieStatus = tokenInfo 
@@ -365,8 +408,17 @@ export function DashboardCards({ data, monthlyStats = [] }: DashboardCardsProps)
             
             {/* 数字部分 - 移到右边并增加上边距 */}
             <div className="text-right mt-3">
-              <p className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2">
-                {daysUntilExpiry} <span className="text-xl font-medium text-gray-500 dark:text-gray-400">天</span>
+              <p className={`text-3xl sm:text-4xl font-bold mb-2 ${
+                subscriptionTimeRemaining.isExpired 
+                  ? 'text-red-500 dark:text-red-400' 
+                  : 'text-gray-900 dark:text-white'
+              }`}>
+                {subscriptionTimeRemaining.value} 
+                {!subscriptionTimeRemaining.isExpired && (
+                  <span className="text-xl font-medium text-gray-500 dark:text-gray-400">
+                    {subscriptionTimeRemaining.unit}
+                  </span>
+                )}
               </p>
               <div className="flex items-center justify-end gap-2 text-base">
                 <span className="font-bold text-blue-600 dark:text-blue-400">
@@ -471,14 +523,23 @@ export function DashboardCards({ data, monthlyStats = [] }: DashboardCardsProps)
             <div className="text-right mt-3">
               {tokenInfo && !tokenInfo.error ? (
                 <>
-                  <p className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2">
-                    {tokenInfo.daysRemaining} <span className="text-xl font-medium text-gray-500 dark:text-gray-400">天</span>
+                  <p className={`text-3xl sm:text-4xl font-bold mb-2 ${
+                    cookieTimeRemaining.isExpired 
+                      ? 'text-red-500 dark:text-red-400' 
+                      : 'text-gray-900 dark:text-white'
+                  }`}>
+                    {cookieTimeRemaining.value}
+                    {!cookieTimeRemaining.isExpired && (
+                      <span className="text-xl font-medium text-gray-500 dark:text-gray-400">
+                        {cookieTimeRemaining.unit}
+                      </span>
+                    )}
                   </p>
                   <div className="flex items-center justify-end gap-2 text-base">
                     <span className={`font-bold ${
-                      tokenInfo.isValid ? 'text-emerald-500' : 'text-red-500'
+                      cookieTimeRemaining.isExpired ? 'text-red-500' : 'text-emerald-500'
                     }`}>
-                      {tokenInfo.isValid ? '有效' : '已过期'}
+                      {cookieTimeRemaining.isExpired ? '已过期' : '有效'}
                     </span>
                     <span className="text-gray-500 dark:text-gray-400">
                       有效期限
