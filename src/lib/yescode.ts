@@ -16,13 +16,19 @@ export interface YesCodeUser {
     daily_balance: number
     monthly_spend_limit: number
     initial_balance: number
+    is_team_plan: boolean
+    team_membership_days: number
     stock: number
+    is_renewable: boolean
+    provider_url: string
+    provider_api_key: string
+    subscription_provider_id: number
+    opus_usage_limit_percentage: number
     is_active: boolean
     created_at: string
     updated_at: string
   }
   subscription_expiry: string
-  preferred_provider_id: number
   email_verified: boolean
   oauth_id: string | null
   current_month_spend: number
@@ -31,6 +37,10 @@ export interface YesCodeUser {
   referral_code: string
   referred_by_user_id: number | null
   total_referral_earnings: number
+  balance_preference: string
+  pending_team_plan_id: number | null
+  pending_team_plan_days: number
+  current_team_id: number | null
   created_at: string
   updated_at: string
 }
@@ -38,15 +48,15 @@ export interface YesCodeUser {
 export async function fetchYesCodeUserInfo(): Promise<YesCodeUser> {
   console.log('Calling YesCode API...')
   
-  if (!process.env.YESCODE_JWT_TOKEN) {
-    throw new Error('YESCODE_JWT_TOKEN environment variable is not set')
+  if (!process.env.YESCODE_API_KEY) {
+    throw new Error('YESCODE_API_KEY environment variable is not set')
   }
   
   try {
     const response = await fetch('https://co.yes.vg/api/v1/auth/profile', {
       headers: {
-        'Authorization': `Bearer ${process.env.YESCODE_JWT_TOKEN}`,
-        'Content-Type': 'application/json',
+        'accept': 'application/json',
+        'X-API-Key': process.env.YESCODE_API_KEY,
       },
     })
 

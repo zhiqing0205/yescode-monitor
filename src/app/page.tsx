@@ -12,13 +12,6 @@ interface DashboardData {
   monthlyStats: any[]
   todayStats: any
   latestRecord: any
-  tokenInfo: {
-    isValid: boolean
-    daysRemaining: number
-    expirationDate: string | null
-    expirationTime: string | null
-    error: string | null
-  }
 }
 
 export default function Dashboard() {
@@ -30,6 +23,18 @@ export default function Dashboard() {
 
   useEffect(() => {
     setMounted(true)
+    
+    // 初始化应用程序（启动内部定时任务）
+    const initializeApp = async () => {
+      try {
+        await fetch('/api/init', { method: 'GET' })
+        console.log('Application initialized successfully')
+      } catch (error) {
+        console.error('Failed to initialize application:', error)
+      }
+    }
+    
+    initializeApp()
     fetchDashboardData()
     const interval = setInterval(fetchDashboardData, 30000)
     return () => clearInterval(interval)

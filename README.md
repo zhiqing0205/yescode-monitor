@@ -10,10 +10,9 @@
 - 24 小时余额变化趋势图表
 
 ### 📈 监控面板
+- **日使用量卡片**：显示当日消费情况和配额进度，动态状态指示器
 - **月使用量卡片**：显示当月消费情况和预算进度，动态状态指示器
-- **余额状态卡片**：展示当前余额和订阅余额对比，可视化进度条
 - **订阅状态卡片**：显示套餐剩余天数和到期时间，30天周期进度条
-- **JWT Token 卡片**：实时监控 Token 有效期，7天周期进度条和到期提醒
 - **多维度图表视图**：
   - 今日余额变化趋势（实时折线图）
   - 昨日余额回顾（历史折线图） 
@@ -22,9 +21,8 @@
 
 ### 🔔 智能通知推送 (Bark)
 - API 请求失败告警
-- 月使用量阈值提醒（50%、80%、95%）
+- 日使用量阈值提醒（50%、80%、95%）
 - 每日使用量汇总报告
-- JWT Token 到期前一天提醒（中午12点推送）
 - 订阅到期前一天提醒（中午12点推送）
 - 自动重置通知和系统状态
 
@@ -40,7 +38,7 @@
 ### ⚡ 自动化任务
 - **5 分钟数据采集**：自动获取并存储使用数据
 - **每日重置（东八区零点）**：重置通知标志并发送日报
-- **JWT Token 监控**：自动解析 Token 有效期并推送到期提醒
+- **API Key 认证**：使用稳定的 API Key 进行身份验证，无需频繁更新
 - **订阅状态跟踪**：监控套餐到期时间并提前通知
 
 ## 技术栈
@@ -71,7 +69,7 @@
 
 ```bash
 DATABASE_URL="postgresql://username:password@host:port/database"
-YESCODE_JWT_TOKEN="your_jwt_token_here"
+YESCODE_API_KEY="cr_your_api_key_here"
 BARK_URL="https://api.day.app/your_device_key"
 NEXT_PUBLIC_GITHUB_URL="https://github.com/yourusername/yescode-monitor"
 API_SECRET="your_api_secret_for_cron_jobs"
@@ -105,17 +103,23 @@ API_SECRET="your_api_secret_for_cron_jobs"
 
 - `POST /api/collect` - 获取并存储 YesCode 数据（定时任务触发）
 - `POST /api/daily-reset` - 重置日统计并发送汇总（定时任务触发）
-- `POST /api/notify` - JWT Token 和订阅到期通知检查（GitHub Actions 触发）
+- `POST /api/notify` - 订阅到期通知检查（GitHub Actions 触发）
 - `GET /api/dashboard` - 获取仪表盘数据（前端调用，包含今日、昨日和30天数据）
+- `GET /api/init` - 初始化应用程序并启动内部定时任务
+- `GET /api/cron` - 获取内部定时任务状态
+- `POST /api/cron` - 控制内部定时任务（init/start/stop/restart）
 
 ## 定时任务
 
-### Vercel Cron Jobs
+### 内部定时任务 (node-cron)
 - **数据采集**：每 5 分钟执行 (`*/5 * * * *`)
-- **日重置**：每日东八区零点执行 (`0 16 * * *`)
+- **日重置**：每日东八区0:05执行 (`5 0 * * *`)
+- **通知检查**：每日东八区12:00执行 (`0 12 * * *`)
 
-### GitHub Actions
-- **到期提醒**：每日中午12点检查 JWT Token 和订阅到期状态并推送通知
+### 外部定时任务 (可选)
+- **Vercel Cron Jobs**：备用数据采集方案
+- **GitHub Actions**：备用到期提醒方案
+- **Cloudflare Worker**：多重保障定时任务
 
 ## 部署说明
 
@@ -130,7 +134,6 @@ API_SECRET="your_api_secret_for_cron_jobs"
 - API 请求失败告警
 - 月使用量阈值提醒（50%、80%、95%）
 - 每日使用量汇总报告
-- JWT Token 到期前一天提醒（中午12点触发）
 - 订阅套餐到期前一天提醒（中午12点触发）
 - 系统错误通知
 
@@ -138,7 +141,6 @@ API_SECRET="your_api_secret_for_cron_jobs"
 
 ### GitHub Actions 通知流程
 1. 每日中午12点（东八区）自动触发
-2. 检查 JWT Token 是否在到期前一天
 3. 检查订阅套餐是否在到期前一天
 4. 通过 Bark API 推送到期提醒通知
 
