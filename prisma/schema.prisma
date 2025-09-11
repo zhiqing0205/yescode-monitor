@@ -19,7 +19,9 @@ model UsageRecord {
   
   // Essential monitoring fields only
   userId     Int      // 用户ID (不敏感的数字标识符)
-  balance    Decimal  // 当前余额
+  balance    Decimal  // 订阅余额 (subscription_balance)
+  payAsYouGoBalance  Decimal?  // 按量付费余额 (pay_as_you_go_balance)
+  totalBalance       Decimal?  // 总余额 (subscription + pay_as_you_go)
   subscriptionPlanId  Int  // 订阅计划ID
   subscriptionExpiry  DateTime @db.Timestamptz  // 订阅到期时间
   currentMonthSpend   Decimal  // 当月消费
@@ -38,11 +40,17 @@ model DailyStats {
   id     BigInt @id @default(autoincrement())
   date   DateTime @unique @db.Date
   
-  startBalance   Decimal
-  endBalance     Decimal
+  startBalance   Decimal  // 订阅余额开始值
+  endBalance     Decimal  // 订阅余额结束值
   dailyAllowance Decimal  // 每日配额
   currentSpend   Decimal  // 当前月消费
   usagePercentage Float
+  
+  // 按量付费余额相关字段
+  startPayAsYouGoBalance  Decimal?  // 按量付费余额开始值
+  endPayAsYouGoBalance    Decimal?  // 按量付费余额结束值
+  payAsYouGoUsage         Decimal?  // 按量付费日使用量
+  payAsYouGoPercentage    Float?    // 按量付费使用百分比
   
   notified50     Boolean @default(false)
   notified80     Boolean @default(false)

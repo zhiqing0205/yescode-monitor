@@ -3,6 +3,7 @@ import { format, startOfDay } from 'date-fns'
 export interface DataPoint {
   timestamp: number
   balance: number
+  payAsYouGoBalance: number
   dailySpent: number
   hourNumber: number
 }
@@ -14,6 +15,7 @@ export interface PredictionResult {
   predictionData: Array<{
     hourNumber: number
     balance: number
+    payAsYouGoBalance: number
     timestamp: number
     hour: string
     isPredicted: boolean
@@ -21,9 +23,9 @@ export interface PredictionResult {
   confidence: 'high' | 'medium' | 'low'
 }
 
-// 指数平滑时序预测（更适合时序数据）
-const exponentialSmoothingPrediction = (balanceArray: number[], predictCount: number) => {
-  console.log('📈 Exponential smoothing prediction with', balanceArray.length, 'points')
+// 指数平滑时序预测（更适合时序数据）- 支持双余额预测
+const exponentialSmoothingPrediction = (balanceArray: number[], payAsYouGoArray: number[], predictCount: number) => {
+  console.log('📈 Exponential smoothing prediction with', balanceArray.length, 'points for dual balances')
   
   if (balanceArray.length < 2) {
     console.log('⚠️ Need at least 2 points for prediction')
@@ -36,51 +38,74 @@ const exponentialSmoothingPrediction = (balanceArray: number[], predictCount: nu
   
   console.log('⚙️ Using Holt exponential smoothing: alpha=', alpha, 'beta=', beta)
   
-  // 初始化水平和趋势
-  let level = balanceArray[0]
-  let trend = balanceArray.length > 1 ? balanceArray[1] - balanceArray[0] : 0
+  // 预测订阅余额
+  let subscriptionLevel = balanceArray[0]
+  let subscriptionTrend = balanceArray.length > 1 ? balanceArray[1] - balanceArray[0] : 0
   
-  console.log('🎯 Initial level:', level.toFixed(4), 'trend:', trend.toFixed(6))
+  console.log('🎯 Initial subscription level:', subscriptionLevel.toFixed(4), 'trend:', subscriptionTrend.toFixed(6))
   
   // 平滑历史数据，学习模式
   for (let i = 1; i < balanceArray.length; i++) {
-    const prevLevel = level
-    level = alpha * balanceArray[i] + (1 - alpha) * (level + trend)
-    trend = beta * (level - prevLevel) + (1 - beta) * trend
+    const prevLevel = subscriptionLevel
+    subscriptionLevel = alpha * balanceArray[i] + (1 - alpha) * (subscriptionLevel + subscriptionTrend)
+    subscriptionTrend = beta * (subscriptionLevel - prevLevel) + (1 - beta) * subscriptionTrend
     
     if (i <= 3) {
-      console.log(`📊 Step ${i}: value=${balanceArray[i].toFixed(4)}, level=${level.toFixed(4)}, trend=${trend.toFixed(6)}`)
+      console.log(`📊 Subscription step ${i}: value=${balanceArray[i].toFixed(4)}, level=${subscriptionLevel.toFixed(4)}, trend=${subscriptionTrend.toFixed(6)}`)
     }
   }
   
-  console.log('📐 Final smoothed level:', level.toFixed(4), 'trend:', trend.toFixed(6))
+  // 预测按量付费余额
+  let payAsYouGoLevel = payAsYouGoArray[0] || 0
+  let payAsYouGoTrend = payAsYouGoArray.length > 1 ? (payAsYouGoArray[1] || 0) - (payAsYouGoArray[0] || 0) : 0
+  
+  console.log('🎯 Initial payAsYouGo level:', payAsYouGoLevel.toFixed(4), 'trend:', payAsYouGoTrend.toFixed(6))
+  
+  // 平滑按量付费历史数据
+  for (let i = 1; i < payAsYouGoArray.length; i++) {
+    const currentPayAsYouGo = payAsYouGoArray[i] || 0
+    const prevLevel = payAsYouGoLevel
+    payAsYouGoLevel = alpha * currentPayAsYouGo + (1 - alpha) * (payAsYouGoLevel + payAsYouGoTrend)
+    payAsYouGoTrend = beta * (payAsYouGoLevel - prevLevel) + (1 - beta) * payAsYouGoTrend
+    
+    if (i <= 3) {
+      console.log(`📊 PayAsYouGo step ${i}: value=${currentPayAsYouGo.toFixed(4)}, level=${payAsYouGoLevel.toFixed(4)}, trend=${payAsYouGoTrend.toFixed(6)}`)
+    }
+  }
+  
+  console.log('📐 Final smoothed levels - subscription:', subscriptionLevel.toFixed(4), 'payAsYouGo:', payAsYouGoLevel.toFixed(4))
   
   // 确保预测从最后实际余额开始
-  const lastActualBalance = balanceArray[balanceArray.length - 1]
-  console.log('🔗 Last actual balance:', lastActualBalance.toFixed(4), 'vs smoothed level:', level.toFixed(4))
+  const lastActualSubscription = balanceArray[balanceArray.length - 1]
+  const lastActualPayAsYouGo = payAsYouGoArray[payAsYouGoArray.length - 1] || 0
+  console.log('🔗 Last actual balances - subscription:', lastActualSubscription.toFixed(4), 'payAsYouGo:', lastActualPayAsYouGo.toFixed(4))
   
-  // 生成预测 - 从最后实际余额开始，应用预测的变化量
-  const predictions = []
-  let currentLevel = lastActualBalance  // 从实际余额开始
-  let currentTrend = trend
+  // 生成预测
+  const subscriptionPredictions = []
+  const payAsYouGoPredictions = []
+  let currentSubscriptionLevel = lastActualSubscription
+  let currentPayAsYouGoLevel = lastActualPayAsYouGo
   
   for (let i = 1; i <= predictCount; i++) {
-    const predictedValue = Math.max(0, currentLevel + currentTrend * i)
-    predictions.push(predictedValue)
+    const predictedSubscription = Math.max(0, currentSubscriptionLevel + subscriptionTrend * i)
+    const predictedPayAsYouGo = Math.max(0, currentPayAsYouGoLevel + payAsYouGoTrend * i)
+    
+    subscriptionPredictions.push(predictedSubscription)
+    payAsYouGoPredictions.push(predictedPayAsYouGo)
     
     if (i <= 5) {
-      console.log(`🔮 Forecast ${i}: ${currentLevel.toFixed(4)} + ${currentTrend.toFixed(6)} * ${i} = ${predictedValue.toFixed(4)}`)
+      console.log(`🔮 Forecast ${i}: subscription=${predictedSubscription.toFixed(4)}, payAsYouGo=${predictedPayAsYouGo.toFixed(4)}`)
     }
     
-    // 如果余额为0，添加这个点然后停止
-    if (predictedValue <= 0) {
-      console.log('🛑 Exponential smoothing predicted depletion at step', i)
+    // 如果两个余额都为0，停止预测
+    if (predictedSubscription <= 0 && predictedPayAsYouGo <= 0) {
+      console.log('🛑 Both balances predicted to be depleted at step', i)
       break
     }
   }
   
-  console.log('✅ Generated', predictions.length, 'exponential smoothing predictions')
-  return predictions
+  console.log('✅ Generated', subscriptionPredictions.length, 'dual balance predictions')
+  return { subscription: subscriptionPredictions, payAsYouGo: payAsYouGoPredictions }
 }
 
 // ARIMA简化版 - 自回归预测
@@ -252,7 +277,10 @@ export async function predictDailyUsage(
   
   // 提取数据用于预测
   const balanceArray = sortedData.map(point => point.balance)
+  const payAsYouGoArray = sortedData.map(point => point.payAsYouGoBalance || 0)
   const timestamps = sortedData.map(point => point.timestamp)
+  
+  console.log('💰 Balance arrays prepared - subscription:', balanceArray.slice(0, 3), '... payAsYouGo:', payAsYouGoArray.slice(0, 3), '...')
   
   // 计算需要预测的点数 - 预测到一天结束或余额为0
   const currentHour = lastPoint.hourNumber
@@ -262,34 +290,20 @@ export async function predictDailyUsage(
   console.log('⏰ Current hour:', currentHour.toFixed(3), 'Remaining minutes:', remainingMinutes.toFixed(1), 'Predict count:', predictCount)
 
   // 尝试时序预测 - 使用新的轻量级算法
-  let predictedBalances = null
+  let dualPredictions = null
   let confidence: 'high' | 'medium' | 'low' = 'low'
   
   if (balanceArray.length >= 3) {
     // 优先使用指数平滑预测
-    predictedBalances = exponentialSmoothingPrediction(balanceArray, predictCount)
-    if (predictedBalances && predictedBalances.length > 0) {
+    dualPredictions = exponentialSmoothingPrediction(balanceArray, payAsYouGoArray, predictCount)
+    if (dualPredictions && dualPredictions.subscription.length > 0) {
       confidence = balanceArray.length >= 5 ? 'high' : 'medium'
-      console.log('✅ Exponential smoothing prediction successful')
-    } else if (balanceArray.length >= 4) {
-      // 备选：自回归预测
-      predictedBalances = autoRegressivePrediction(balanceArray, predictCount)
-      if (predictedBalances && predictedBalances.length > 0) {
-        confidence = 'medium'
-        console.log('✅ Auto-regressive prediction used')
-      }
-    }
-    
-    // 最后备选：移动平均
-    if (!predictedBalances || predictedBalances.length === 0) {
-      predictedBalances = movingAveragePrediction(balanceArray, predictCount)
-      confidence = 'low'
-      console.log('✅ Moving average prediction used as fallback')
+      console.log('✅ Exponential smoothing dual prediction successful')
     }
   }
   
-  if (!predictedBalances || predictedBalances.length === 0) {
-    console.log('❌ No predictions generated, returning current balance as final')
+  if (!dualPredictions || dualPredictions.subscription.length === 0) {
+    console.log('❌ No dual predictions generated, returning current balances as final')
     const currentPredictedSpent = Math.max(0, dailyBudget - lastPoint.balance)
     return {
       predictedSpent: currentPredictedSpent,
@@ -300,7 +314,9 @@ export async function predictDailyUsage(
     }
   }
   
-  console.log('🔮 Predictions:', predictedBalances.slice(0, 5), '...(', predictedBalances.length, 'total)')
+  console.log('🔮 Dual Predictions:')
+  console.log('   Subscription:', dualPredictions.subscription.slice(0, 5), '...(', dualPredictions.subscription.length, 'total)')
+  console.log('   PayAsYouGo:', dualPredictions.payAsYouGo.slice(0, 5), '...(', dualPredictions.payAsYouGo.length, 'total)')
   
   // 构建预测数据
   const today = startOfDay(new Date())
@@ -311,6 +327,7 @@ export async function predictDailyUsage(
     predictionData.push({
       hourNumber: point.hourNumber,
       balance: point.balance,
+      payAsYouGoBalance: point.payAsYouGoBalance || 0,
       timestamp: point.timestamp,
       hour: format(new Date(point.timestamp), 'HH:mm'),
       isPredicted: false
@@ -322,7 +339,7 @@ export async function predictDailyUsage(
   const hourInterval = minuteInterval / 60
   
   // 添加所有预测点，直接从下一个时间点开始，确保余额连续性
-  for (let i = 0; i < predictedBalances.length; i++) {
+  for (let i = 0; i < Math.min(dualPredictions.subscription.length, dualPredictions.payAsYouGo.length); i++) {
     const h = currentHour + hourInterval * (i + 1)
     if (h >= 24) {
       console.log('🕛 Reached end of day at hour', h.toFixed(3))
@@ -330,19 +347,21 @@ export async function predictDailyUsage(
     }
     
     const timestamp = today.getTime() + (h * 60 * 60 * 1000)
-    const predictedBalance = predictedBalances[i]
+    const predictedBalance = dualPredictions.subscription[i]
+    const predictedPayAsYouGo = dualPredictions.payAsYouGo[i]
     
     predictionData.push({
       hourNumber: h,
       balance: predictedBalance,
+      payAsYouGoBalance: predictedPayAsYouGo,
       timestamp,
       hour: format(new Date(timestamp), 'HH:mm'),
       isPredicted: true
     })
     
-    // 如果预测余额为0或负数，这是最后一个预测点
-    if (predictedBalance <= 0) {
-      console.log('🛑 Reached zero balance at hour', h.toFixed(3), 'balance:', predictedBalance.toFixed(4))
+    // 如果预测余额都为0或负数，这是最后一个预测点
+    if (predictedBalance <= 0 && predictedPayAsYouGo <= 0) {
+      console.log('🛑 Reached zero balances at hour', h.toFixed(3))
       break
     }
   }
@@ -350,20 +369,20 @@ export async function predictDailyUsage(
   console.log('📊 Total prediction data points:', predictionData.length, '(actual + predicted)')
   
   // 关键：修复预测消费计算
-  const finalBalance = predictedBalances[predictedBalances.length - 1]
+  const finalBalance = dualPredictions.subscription[dualPredictions.subscription.length - 1]
   const predictedSpent = Math.max(0, dailyBudget - finalBalance)
   
   console.log('💸 FIXED Calculation:')
   console.log('  - Daily budget:', dailyBudget)
-  console.log('  - Final predicted balance:', finalBalance)
+  console.log('  - Final predicted subscription balance:', finalBalance)
   console.log('  - Predicted spent (budget - final):', predictedSpent)
   
-  // 计算耗尽时间
+  // 计算耗尽时间 - 基于订阅余额
   let predictedEndTime: string | null = null
   const willExceedBudget = finalBalance <= 0
   
   if (willExceedBudget) {
-    const zeroBalanceIndex = predictedBalances.findIndex(balance => balance <= 0.01)
+    const zeroBalanceIndex = dualPredictions.subscription.findIndex(balance => balance <= 0.01)
     if (zeroBalanceIndex !== -1) {
       const depletionHour = currentHour + hourInterval * (zeroBalanceIndex + 1)
       if (depletionHour <= 24) {

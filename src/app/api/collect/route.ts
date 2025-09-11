@@ -76,10 +76,16 @@ export async function POST(request: NextRequest) {
     console.log('YesCode user info fetched successfully:', { userId: userInfo.id })
     
     console.log('Creating usage record...')
+    const payAsYouGoBalance = userInfo.pay_as_you_go_balance ? new Decimal(userInfo.pay_as_you_go_balance) : null
+    const subscriptionBalance = new Decimal(userInfo.subscription_balance)
+    const totalBalance = payAsYouGoBalance ? subscriptionBalance.plus(payAsYouGoBalance) : subscriptionBalance
+    
     const usageRecord = await prisma.usageRecord.create({
       data: {
         userId: userInfo.id,
-        balance: new Decimal(userInfo.subscription_balance),
+        balance: subscriptionBalance,
+        payAsYouGoBalance: payAsYouGoBalance,
+        totalBalance: totalBalance,
         subscriptionPlanId: userInfo.subscription_plan_id,
         subscriptionExpiry: new Date(userInfo.subscription_expiry),
         currentMonthSpend: new Decimal(userInfo.current_month_spend),
@@ -106,6 +112,12 @@ export async function POST(request: NextRequest) {
     const dailyUsed = Math.max(0, dailyQuota - currentBalance) // 防止负数
     const dailyUsagePercentage = (dailyUsed / dailyQuota) * 100
     
+    // 计算按量付费余额使用情况
+    const payAsYouGoTotal = 50 // 按量付费总额固定为50
+    const currentPayAsYouGoBalance = userInfo.pay_as_you_go_balance || 0
+    const payAsYouGoUsed = Math.max(0, payAsYouGoTotal - currentPayAsYouGoBalance)
+    const payAsYouGoPercentage = (payAsYouGoUsed / payAsYouGoTotal) * 100
+    
     if (!dailyStats) {
       console.log('Creating new daily stats record...')
       dailyStats = await prisma.dailyStats.create({
@@ -116,6 +128,11 @@ export async function POST(request: NextRequest) {
           dailyAllowance: new Decimal(dailyQuota), // 每日配额
           currentSpend: new Decimal(dailyUsed), // 当日已使用
           usagePercentage: dailyUsagePercentage,
+          // 按量付费相关字段
+          startPayAsYouGoBalance: payAsYouGoBalance,
+          endPayAsYouGoBalance: payAsYouGoBalance,
+          payAsYouGoUsage: new Decimal(payAsYouGoUsed),
+          payAsYouGoPercentage: payAsYouGoPercentage,
         },
       })
       console.log('New daily stats record created:', { statsId: dailyStats.id.toString() })
@@ -128,6 +145,10 @@ export async function POST(request: NextRequest) {
           endBalance: new Decimal(currentBalance),
           currentSpend: new Decimal(dailyUsed),
           usagePercentage: dailyUsagePercentage,
+          // 更新按量付费相关字段
+          endPayAsYouGoBalance: payAsYouGoBalance,
+          payAsYouGoUsage: new Decimal(payAsYouGoUsed),
+          payAsYouGoPercentage: payAsYouGoPercentage,
         },
       })
       console.log('Daily stats updated, daily usage percentage:', dailyUsagePercentage.toFixed(2) + '%')

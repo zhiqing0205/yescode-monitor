@@ -45,10 +45,33 @@ next-env.d.ts
 # prisma
 prisma/migrations
 
-# backup
-backup
+# backup and database dumps
+backup/
+backups/
+*.sql
+*.sql.gz
+*.pgdump
+
+# temporary files
+*.tmp
+*.bak
+*.backup*
+
+# logs
+logs/
+*.log
+
+# deployment scripts and reports
+*_REPORT.md
+DEPLOY_*.md
+DOCKER_*.md
+POSTGRESQL_*.md
+update-jwt.sh
 
 # cloudflare worker
 worker/.wrangler/
 worker/node_modules/
 worker/dist/
+
+# docker compose overrides
+docker-compose.override.yml

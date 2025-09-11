@@ -1,7 +1,17 @@
 import { CronJob } from 'cron'
 
+// 类型定义（处理cron包的类型不兼容问题）
+interface CronJobInstance {
+  start(): void;
+  stop(): void;
+  running?: boolean;
+  cronTime?: {
+    source?: string;
+  };
+}
+
 // 存储所有cron任务的引用
-const cronJobs: Map<string, CronJob> = new Map()
+const cronJobs: Map<string, CronJobInstance> = new Map()
 
 // API调用函数
 async function callAPI(endpoint: string) {
@@ -82,10 +92,10 @@ export function initializeCronJobs() {
     'Asia/Shanghai' // timeZone
   )
 
-  // 存储任务引用
-  cronJobs.set('dataCollection', dataCollectionJob)
-  cronJobs.set('dailyReset', dailyResetJob)
-  cronJobs.set('notificationCheck', notificationCheckJob)
+  // 存储任务引用（类型转换）
+  cronJobs.set('dataCollection', dataCollectionJob as CronJobInstance)
+  cronJobs.set('dailyReset', dailyResetJob as CronJobInstance)
+  cronJobs.set('notificationCheck', notificationCheckJob as CronJobInstance)
 
   console.log('Internal cron jobs initialized')
 }
@@ -119,9 +129,16 @@ export function getCronJobsStatus() {
   const status: Record<string, { running: boolean, cronTime: string }> = {}
   
   cronJobs.forEach((job, name) => {
-    status[name] = {
-      running: job.running,
-      cronTime: job.cronTime.source
+    try {
+      status[name] = {
+        running: job.running || false,
+        cronTime: job.cronTime?.source || 'N/A'
+      }
+    } catch (error) {
+      status[name] = {
+        running: false,
+        cronTime: 'N/A'
+      }
     }
   })
 

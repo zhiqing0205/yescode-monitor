@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
 import { format, startOfDay, addHours, subDays, isSameDay } from 'date-fns'
 import { BarChart3, TrendingDown, TrendingUp, Calendar, Clock, Brain, AlertCircle, CheckCircle } from 'lucide-react'
@@ -20,6 +20,54 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [prediction, setPrediction] = useState<PredictionResult | null>(null)
   const [isLoadingPrediction, setIsLoadingPrediction] = useState(false)
+  const [chartHeight, setChartHeight] = useState(288) // 默认18rem = 288px
+  const containerRef = useRef<HTMLDivElement>(null)
+  
+  // 动态计算图表高度以消除滚动条
+  const calculateChartHeight = useCallback(() => {
+    if (typeof window === 'undefined') return 320
+    
+    const viewportHeight = window.innerHeight
+    
+    // 平衡的高度估算，适度保守
+    const headerHeight = 140 // 头部区域（标题+按钮行+间距）
+    const cardsHeight = 200 // 卡片区域（考虑4列响应式）
+    const tabsAndTitleHeight = 90 // 标签页和图表标题区域
+    const legendAndStatsHeight = 150 // 图例和统计信息区域
+    const footerHeight = 70 // 页脚信息
+    const paddingHeight = 100 // 各种间距、padding和适度安全边距
+    
+    const reservedHeight = headerHeight + cardsHeight + tabsAndTitleHeight + legendAndStatsHeight + footerHeight + paddingHeight
+    const availableHeight = viewportHeight - reservedHeight
+    
+    // 平衡的范围限制：最小240px，最大380px
+    const calculatedHeight = Math.max(240, Math.min(availableHeight, 380))
+    
+    // 对于小屏幕，使用适中的高度
+    if (viewportHeight <= 800) {
+      return 260
+    }
+    
+    // 对于大屏幕，允许更大的高度
+    if (viewportHeight >= 1080) {
+      return Math.min(calculatedHeight, 400)
+    }
+    
+    return calculatedHeight
+  }, [])
+  
+  // 监听窗口大小变化
+  useEffect(() => {
+    const updateHeight = () => {
+      const newHeight = calculateChartHeight()
+      setChartHeight(newHeight)
+    }
+    
+    updateHeight()
+    
+    window.addEventListener('resize', updateHeight)
+    return () => window.removeEventListener('resize', updateHeight)
+  }, [calculateChartHeight])
   
   // 直接使用本地时间，因为环境已经是东八区
   const today = startOfDay(new Date())
@@ -148,6 +196,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
       // 直接使用数据库时间，系统环境已经是东八区
       const recordTime = new Date(record.timestamp)
       const currentBalance = parseFloat(record.balance) // 数据库中存储的balance字段来自subscription_balance
+      const payAsYouGoBalance = parseFloat(record.payAsYouGoBalance || '0') // 按量付费余额
       
       const hourNumber = recordTime.getHours() + recordTime.getMinutes() / 60
       
@@ -155,6 +204,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
         hour: format(recordTime, 'HH:mm'),
         hourNumber: hourNumber, // 精确到分钟
         balance: parseFloat(currentBalance.toFixed(2)),
+        payAsYouGoBalance: parseFloat(payAsYouGoBalance.toFixed(2)),
         timestamp: recordTime.getTime(),
         hasData: true,
         dailyBudget: parseFloat(record.dailyBalance) // 使用dailyBalance字段
@@ -182,11 +232,13 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
       // 直接使用数据库时间
       const recordTime = new Date(record.timestamp)
       const currentBalance = parseFloat(record.balance) // 数据库中存储的balance字段来自subscription_balance
+      const payAsYouGoBalance = parseFloat(record.payAsYouGoBalance || '0') // 按量付费余额
       
       return {
         hour: format(recordTime, 'HH:mm'),
         hourNumber: recordTime.getHours() + recordTime.getMinutes() / 60,
         balance: parseFloat(currentBalance.toFixed(2)),
+        payAsYouGoBalance: parseFloat(payAsYouGoBalance.toFixed(2)),
         timestamp: recordTime.getTime(),
         hasData: true,
         dailyBudget: parseFloat(record.dailyBalance) // 使用dailyBalance字段
@@ -237,6 +289,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
         return {
           timestamp: point.timestamp,
           balance: point.balance,
+          payAsYouGoBalance: point.payAsYouGoBalance || 0,
           dailySpent: dailySpent,
           hourNumber: point.hourNumber
         }
@@ -296,14 +349,18 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
       // 创建一个完整的时间轴数据，包含实际值和预测值
       const fullData = []
       
-      // 添加实际数据点
+      // 添加实际数据点 - 从原始数据获取payAsYouGoBalance
       const actualPoints = prediction.predictionData.filter(point => !point.isPredicted)
       console.log('📈 Actual points from prediction:', actualPoints.length)
       for (const point of actualPoints) {
+        // 从原始数据中找到对应的记录来获取payAsYouGoBalance
+        const originalPoint = rawChartData.find(raw => Math.abs(raw.hourNumber - point.hourNumber) < 0.01)
         fullData.push({
           hourNumber: point.hourNumber,
           balance: point.balance,
+          payAsYouGoBalance: originalPoint?.payAsYouGoBalance || 0, // 从原始数据获取
           predictedBalance: null,
+          predictedPayAsYouGoBalance: null,
           timestamp: point.timestamp,
           hour: point.hour,
           hasData: true,
@@ -311,14 +368,16 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
         })
       }
       
-      // 添加预测数据点
+      // 添加预测数据点 - 预测数据包含payAsYouGoBalance
       const predictedPoints = prediction.predictionData.filter(point => point.isPredicted)
       console.log('🔮 Predicted points from prediction:', predictedPoints.length)
       for (const point of predictedPoints) {
         fullData.push({
           hourNumber: point.hourNumber,
           balance: null,
+          payAsYouGoBalance: null, // 实际数据设为null
           predictedBalance: point.balance,
+          predictedPayAsYouGoBalance: point.payAsYouGoBalance || 0, // 预测的按量付费余额
           timestamp: point.timestamp,
           hour: point.hour,
           hasData: false,
@@ -339,6 +398,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
     return rawChartData.map(point => ({
       ...point,
       predictedBalance: null,
+      predictedPayAsYouGoBalance: null,
       isPredicted: false
     }))
   }, [activeTab, prediction, rawChartData])
@@ -354,11 +414,11 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
   
   // 检查预测数据是否需要显示点
   const shouldShowPredictionDots = useMemo(() => {
-    if (!prediction || !combinedChartData.some(d => d.predictedBalance !== null)) {
+    if (!prediction || !combinedChartData.some(d => d.predictedBalance !== null || d.predictedPayAsYouGoBalance !== null)) {
       return false
     }
     
-    const predictedPoints = combinedChartData.filter(d => d.predictedBalance !== null)
+    const predictedPoints = combinedChartData.filter(d => d.predictedBalance !== null || d.predictedPayAsYouGoBalance !== null)
     
     // 预测点很少时显示
     if (predictedPoints.length <= 3) return true
@@ -443,6 +503,44 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
 
   const monthlyChartData = process30DaysData()
 
+  // 计算动态纵轴范围
+  const calculateYAxisDomain = useMemo(() => {
+    if (activeTab === '30days') {
+      // 30天模式使用消耗量数据
+      const maxUsage = monthlyChartData.reduce((max, d) => Math.max(max, d.usage), 0)
+      return [0, Math.ceil(Math.max(maxUsage * 1.2, 1))] // 增加20%缓冲，向上取整
+    } else {
+      // 日趋势模式使用余额数据
+      const allValues: number[] = []
+      
+      // 收集实际余额数据
+      chartData.forEach(point => {
+        if (point.balance !== null) allValues.push(point.balance)
+        if (point.payAsYouGoBalance !== null && point.payAsYouGoBalance !== undefined) {
+          allValues.push(point.payAsYouGoBalance)
+        }
+        if (point.predictedBalance !== null) allValues.push(point.predictedBalance)
+        if (point.predictedPayAsYouGoBalance !== null && point.predictedPayAsYouGoBalance !== undefined) {
+          allValues.push(point.predictedPayAsYouGoBalance)
+        }
+      })
+      
+      if (allValues.length === 0) {
+        // 没有数据时使用预算值
+        return [-1, dailyBudget + 1]
+      }
+      
+      const minValue = Math.min(...allValues)
+      const maxValue = Math.max(...allValues)
+      const buffer = Math.max((maxValue - minValue) * 0.1, 1) // 10%缓冲，最小1
+      
+      return [
+        Math.floor(Math.max(minValue - buffer, -1)), // 最小值不低于-1，向下取整
+        Math.ceil(Math.max(maxValue + buffer, dailyBudget + 1)) // 确保包含预算值，向上取整
+      ]
+    }
+  }, [activeTab, chartData, monthlyChartData, dailyBudget])
+
   // 计算趋势
   const validBalances = rawChartData.filter(d => d.balance !== null).map(d => d.balance as number)
   const trend = validBalances.length > 1 
@@ -474,7 +572,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
             {`${dateDisplay} ${timeDisplay}`}
           </p>
           
-          {/* 实际余额显示 */}
+          {/* 订阅余额显示 */}
           {dataPoint.hasData || (!dataPoint.isPredicted && dataPoint.balance !== null) ? (
             <div className="flex items-center justify-between gap-4 mb-1">
               <div className="flex items-center gap-2">
@@ -483,7 +581,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                   style={{ backgroundColor: payload.find((p: any) => p.dataKey === 'balance')?.color || '#2563EB' }}
                 />
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  当前余额
+                  订阅余额
                 </span>
               </div>
               <span className="text-sm font-bold text-gray-900 dark:text-white">
@@ -492,7 +590,24 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
             </div>
           ) : null}
           
-          {/* 预测余额显示 */}
+          {/* 按量付费余额显示 */}
+          {dataPoint.hasData && dataPoint.payAsYouGoBalance !== null && dataPoint.payAsYouGoBalance !== undefined ? (
+            <div className="flex items-center justify-between gap-4 mb-1">
+              <div className="flex items-center gap-2">
+                <div 
+                  className="w-3 h-3 rounded-full bg-purple-500"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  按量付费余额
+                </span>
+              </div>
+              <span className="text-sm font-bold text-purple-600 dark:text-purple-400">
+                ${(dataPoint.payAsYouGoBalance || 0).toFixed(2)}
+              </span>
+            </div>
+          ) : null}
+          
+          {/* 预测余额显示 - 订阅 */}
           {dataPoint.isPredicted && dataPoint.predictedBalance !== null ? (
             <div className="flex items-center justify-between gap-4 mb-1">
               <div className="flex items-center gap-2">
@@ -505,11 +620,33 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                   />
                 </svg>
                 <span className="text-sm font-medium text-orange-600 dark:text-orange-400">
-                  AI预测余额
+                  AI预测订阅余额
                 </span>
               </div>
               <span className="text-sm font-bold text-orange-600 dark:text-orange-400">
                 ${(dataPoint.predictedBalance || 0).toFixed(2)}
+              </span>
+            </div>
+          ) : null}
+          
+          {/* 预测余额显示 - 按量付费 */}
+          {dataPoint.isPredicted && dataPoint.predictedPayAsYouGoBalance !== null && dataPoint.predictedPayAsYouGoBalance !== undefined ? (
+            <div className="flex items-center justify-between gap-4 mb-1">
+              <div className="flex items-center gap-2">
+                <svg width="12" height="3" className="opacity-80">
+                  <line 
+                    x1="0" y1="1.5" x2="12" y2="1.5" 
+                    stroke="#EA580C" 
+                    strokeWidth="2" 
+                    strokeDasharray="3 2"
+                  />
+                </svg>
+                <span className="text-sm font-medium text-orange-600 dark:text-orange-400">
+                  AI预测按量付费余额
+                </span>
+              </div>
+              <span className="text-sm font-bold text-orange-600 dark:text-orange-400">
+                ${(dataPoint.predictedPayAsYouGoBalance || 0).toFixed(2)}
               </span>
             </div>
           ) : null}
@@ -716,10 +853,14 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
         </div>
         
         {/* 图表容器 */}
-        <div className="relative">
+        <div className="relative" ref={containerRef}>
           <div 
-            className="h-72 w-full focus:outline-none" 
-            style={{ outline: 'none', border: 'none' }} 
+            className="w-full focus:outline-none" 
+            style={{ 
+              height: `${chartHeight}px`,
+              outline: 'none', 
+              border: 'none' 
+            }} 
             tabIndex={-1}
             onFocus={(e) => e.target.blur()}
           >
@@ -787,6 +928,7 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                     className="text-gray-500 dark:text-gray-400"
                     axisLine={false}
                     tickLine={false}
+                    domain={calculateYAxisDomain}
                   />
                   
                   <Tooltip 
@@ -822,6 +964,12 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                   <linearGradient id="newBalanceGradient" x1="0" y1="0" x2="1" y2="0">
                     <stop offset="0%" stopColor="#1e40af" />
                     <stop offset="100%" stopColor="#0891b2" />
+                  </linearGradient>
+                  
+                  {/* 按量付费余额线渐变 - 紫色系 */}
+                  <linearGradient id="payAsYouGoGradient" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#9333ea" />
+                    <stop offset="100%" stopColor="#a855f7" />
                   </linearGradient>
                   
                   {/* 新的预测线渐变 - 从深橙到红色 */}
@@ -867,12 +1015,12 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                   className="text-gray-500 dark:text-gray-400"
                   axisLine={false}
                   tickLine={false}
-                  domain={[-1, dailyBudget + 1]}
+                  domain={calculateYAxisDomain}
                 />
                 
                 <Tooltip content={<CustomTooltip />} />
                 
-                {/* 实际数据折线图 */}
+                {/* 实际数据折线图 - 订阅余额 */}
                 <Line
                   type="linear"
                   dataKey="balance"
@@ -896,10 +1044,58 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                   isAnimationActive={false}
                 />
                 
-                {/* 预测数据虚线 */}
+                {/* 按量付费余额折线图 */}
+                <Line
+                  type="linear"
+                  dataKey="payAsYouGoBalance"
+                  stroke="#9333EA"
+                  strokeWidth={3}
+                  dot={shouldShowDots ? {
+                    r: 4,
+                    fill: '#9333EA',
+                    stroke: '#ffffff',
+                    strokeWidth: 2,
+                    className: 'drop-shadow-lg'
+                  } : false}
+                  activeDot={{ 
+                    r: 6, 
+                    fill: '#9333EA',
+                    stroke: '#ffffff',
+                    strokeWidth: 2,
+                    className: 'drop-shadow-xl animate-pulse'
+                  }}
+                  connectNulls={false}
+                  isAnimationActive={false}
+                />
+                
+                {/* 预测数据虚线 - 订阅余额 */}
                 <Line
                   type="linear"
                   dataKey="predictedBalance"
+                  stroke="#EA580C"
+                  strokeWidth={3}
+                  strokeDasharray="8 4"
+                  dot={shouldShowPredictionDots ? {
+                    r: 3,
+                    fill: '#EA580C',
+                    stroke: '#ffffff',
+                    strokeWidth: 2,
+                    className: 'drop-shadow-lg'
+                  } : false}
+                  activeDot={{
+                    r: 4,
+                    fill: '#EA580C',
+                    stroke: '#ffffff',
+                    strokeWidth: 2,
+                  }}
+                  connectNulls={false}
+                  isAnimationActive={false}
+                />
+                
+                {/* 预测数据虚线 - 按量付费余额 */}
+                <Line
+                  type="linear"
+                  dataKey="predictedPayAsYouGoBalance"
                   stroke="#EA580C"
                   strokeWidth={3}
                   strokeDasharray="8 4"
@@ -956,12 +1152,22 @@ export const UsageChart = React.memo(function UsageChart({ data, monthlyData = [
                   : 'bg-blue-600'
               }`}></div>
               <span className="font-medium text-gray-700 dark:text-gray-300">
-                {(activeTab === 'today' || activeTab === 'yesterday') ? '当前余额' : '日消耗量'}
+                {(activeTab === 'today' || activeTab === 'yesterday') ? '订阅余额' : '日消耗量'}
               </span>
             </div>
             
-            {/* LSTM预测线图例 - 仅在今日标签页且有预测数据时显示 */}
-            {activeTab === 'today' && prediction && chartData.some(d => d.predictedBalance !== null) && (
+            {/* 按量付费余额图例 - 仅在非30天模式时显示 */}
+            {activeTab !== '30days' && (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-3 rounded-sm shadow-sm bg-purple-600"></div>
+                <span className="font-medium text-gray-700 dark:text-gray-300">
+                  按量付费余额
+                </span>
+              </div>
+            )}
+            
+            {/* AI预测图例 - 仅在今日标签页且有预测数据时显示 */}
+            {activeTab === 'today' && prediction && (chartData.some(d => d.predictedBalance !== null) || chartData.some(d => d.predictedPayAsYouGoBalance !== null)) && (
               <div className="flex items-center gap-2">
                 <div className="w-4 h-3 rounded-sm shadow-sm bg-orange-600"></div>
                 <span className="font-medium text-gray-700 dark:text-gray-300">

@@ -129,13 +129,15 @@ export default function Dashboard() {
             <div className="flex items-center gap-3">
               {/* 主题切换按钮 */}
               <button
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                onClick={() => setTheme(theme === 'dark' ? 'light' : theme === 'light' ? 'system' : 'dark')}
                 className="group relative p-3 rounded-xl glass hover-lift transition-all duration-300 overflow-hidden"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 <div className="relative">
                   {theme === 'dark' ? (
                     <Sun className="w-5 h-5 text-yellow-500 transition-transform duration-300 group-hover:rotate-180" />
+                  ) : theme === 'light' ? (
+                    <Activity className="w-5 h-5 text-purple-600 transition-transform duration-300 group-hover:scale-110" />
                   ) : (
                     <Moon className="w-5 h-5 text-indigo-600 transition-transform duration-300 group-hover:-rotate-12" />
                   )}
@@ -144,7 +146,7 @@ export default function Dashboard() {
               
               {/* GitHub链接 */}
               <a
-                href={process.env.NEXT_PUBLIC_GITHUB_URL || '#'}
+                href="https://github.com/zhiqing0205/yescode-monitor"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group relative p-3 rounded-xl glass hover-lift transition-all duration-300 overflow-hidden"
@@ -208,7 +210,7 @@ export default function Dashboard() {
               </span>
             </div>
             <p className="mt-2 text-xs text-gray-400 dark:text-gray-600">
-              基于 Next.js 构建 • 由 Vercel 托管
+              基于 Next.js 构建 • 开源监控平台
             </p>
           </footer>
         </div>
